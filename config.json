@@ -1,0 +1,6 @@
+{
+    "commands": {
+        "calendar": ["apoinent", "calendar"],
+        "alarm": "alarm.py"
+    }
+}
