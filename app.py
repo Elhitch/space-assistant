@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import nltk
 import json
 import importlib
@@ -12,14 +13,17 @@ def find_nouns(command: str) -> list:
     return nouns
 
 
-def find_module(noun: str) -> str:
+def find_module(nouns: str) -> str:
     """Find the matching module based on noun"""
     with open('config.json') as f:
         data = json.load(f)
         # print(data['commands'])
-        for key, values in data['commands'].items():
-            if noun[0] in values:
-                return key
+        """ Iterate through each item noun in the sentence provided by the user. Necessary to eliminate false-positives nouns, e.g. "show". """
+        for noun in nouns:
+            for key, values in data['commands'].items():
+                if noun in values:
+                    return key
+        return None
 
 
 def main():
@@ -27,10 +31,20 @@ def main():
         command = input('> ')
 
         nouns = find_nouns(command)
-        module_name = find_module(nouns)
-        module = importlib.import_module(f'commands.{module_name}')
-
-        module.initialize()
+        """ 
+            Pass a reversed list of nouns. In imperative sentences nouns usually are last so this should speed up the process in find_module(),
+            especially if the the verb also exists as a noun, e.g. "show".
+        """
+        module_name = find_module(nouns[::-1])
+        """
+            If the command is recognised, perform further analysis to execute the specific action.
+            Else, notify the user.
+        """
+        if module_name != None:
+            module = importlib.import_module(f'commands.{module_name}')
+            module.initialize()
+        else:
+            print ("Sorry, I can't understand you.")
 
 
 if __name__ == "__main__":
