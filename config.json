@@ -1,6 +1,6 @@
 {
     "commands": {
-        "calendar": ["apoinent", "calendar"],
+        "calendar": ["appointment", "calendar"],
         "alarm": ["alarm", "clock"]
     }
 }

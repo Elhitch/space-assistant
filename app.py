@@ -3,15 +3,15 @@ import nltk
 import json
 import importlib
 
-
 def find_nouns(command: str) -> list:
     """Get the verb out of the sentence."""
     command = command.strip()
     tokenized = nltk.word_tokenize(command)
     is_noun = lambda pos: pos[:2] == 'NN'
-    nouns = [word for (word, pos) in nltk.pos_tag(tokenized) if is_noun(pos)]
+    #global tagged_sentence 
+    tagged_sentence = nltk.pos_tag(tokenized)
+    nouns = [word for (word, pos) in tagged_sentence if is_noun(pos)]
     return nouns
-
 
 def find_module(nouns: str) -> str:
     """Find the matching module based on noun"""
@@ -25,7 +25,6 @@ def find_module(nouns: str) -> str:
                     return key
         return None
 
-
 def main():
     while True:
         command = input('> ')
@@ -35,6 +34,7 @@ def main():
             Pass a reversed list of nouns. In imperative sentences nouns usually are last so this should speed up the process in find_module(),
             especially if the the verb also exists as a noun, e.g. "show".
         """
+        #tagged_sentence = None
         module_name = find_module(nouns[::-1])
         """
             If the command is recognised, perform further analysis to execute the specific action.
