@@ -4,6 +4,15 @@ import nltk
 import json
 import importlib
 import speech_recognition as sr
+import pyttsx3
+
+def initSpeechFeedback():
+    # Currently using espeak, look into possibilities to replace it with Festival
+    speechFeedbackEngine = pyttsx3.init()
+    #rate = speechFeedbackEngine.getProperty('rate')
+    speechFeedbackEngine.setProperty('rate', 150)
+    speechFeedbackEngine.setProperty('voice', 'english+f1')
+    return speechFeedbackEngine
 
 def find_nouns(command: str) -> list:
     """Get the verb out of the sentence."""
@@ -27,7 +36,7 @@ def find_module(nouns: str) -> str:
                     return key
         return None
 
-def main():
+if __name__ == "__main__":
     inputFromAudio = False
     for i in range(1, len(sys.argv)):
         if sys.argv[i] == "-a":
@@ -38,12 +47,12 @@ def main():
             saAudioInput = sr.Recognizer()  
             with sr.Microphone() as source:
                 print("Please wait. Calibrating microphone...")
-                # Profile ambient noise for better accuracy
+                """ Profile ambient noise for better accuracy """
                 saAudioInput.adjust_for_ambient_noise(source, duration=5)
                 print("Say something!")
                 audio = saAudioInput.listen(source)
             
-            # (Try to) recognize speech using Sphinx engine
+            """ (Try to) recognize speech using Sphinx engine """
             try:  
                 command = saAudioInput.recognize_sphinx(audio)
                 print(command)
@@ -67,10 +76,8 @@ def main():
         """
         if module_name != None:
             module = importlib.import_module(f'commands.{module_name}')
-            module.initialize()
+            speechFeedbackEngine = initSpeechFeedback()
+            speechFeedbackEngine.say(module.initialize())
+            speechFeedbackEngine.runAndWait()
         else:
             print ("Sorry, I can't understand you.")
-
-
-if __name__ == "__main__":
-    main()

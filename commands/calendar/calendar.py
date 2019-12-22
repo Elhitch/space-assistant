@@ -1,2 +1,2 @@
 def initialize():
-    print("INITIALIZING CALENDAR")
+    return ("Alright, opening your calendar...")
