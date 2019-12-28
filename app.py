@@ -14,13 +14,20 @@ def initSpeechFeedback():
     speechFeedbackEngine.setProperty('voice', 'english+f1')
     return speechFeedbackEngine
 
-def find_nouns(command: str) -> list:
-    """Get the verb out of the sentence."""
+def tagAndTokenize(command: str):
     command = command.strip()
     tokenized = nltk.word_tokenize(command)
-    is_noun = lambda pos: pos[:2] == 'NN'
-    #global tagged_sentence 
     tagged_sentence = nltk.pos_tag(tokenized)
+    return tagged_sentence
+
+def find_nouns(tagged_sentence) -> list:
+    """Get the verb out of the sentence."""
+    """command = command.strip()
+    tokenized = nltk.word_tokenize(command)
+    
+    #global tagged_sentence 
+    tagged_sentence = nltk.pos_tag(tokenized)"""
+    is_noun = lambda pos: pos[:2] == 'NN'
     nouns = [word for (word, pos) in tagged_sentence if is_noun(pos)]
     return nouns
 
@@ -63,7 +70,8 @@ if __name__ == "__main__":
         else:
             command = input('> ')
 
-        nouns = find_nouns(command)
+        sentenceComposition = tagAndTokenize(command)
+        nouns = find_nouns(sentenceComposition)
         """ 
             Pass a reversed list of nouns. In imperative sentences nouns usually are last so this should speed up the process in find_module(),
             especially if the the verb also exists as a noun, e.g. "show".
@@ -77,7 +85,9 @@ if __name__ == "__main__":
         if module_name != None:
             module = importlib.import_module(f'commands.{module_name}')
             speechFeedbackEngine = initSpeechFeedback()
-            speechFeedbackEngine.say(module.initialize())
+            modInitResult = module.initialize(sentenceComposition)
+            print(modInitResult)
+            speechFeedbackEngine.say(modInitResult)
             speechFeedbackEngine.runAndWait()
         else:
             print ("Sorry, I can't understand you.")
