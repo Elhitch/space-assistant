@@ -1,4 +1,5 @@
 from shutil import which
+import subprocess
 
 functionKeywords = {
     "open": ["open", "start", "show"]
@@ -12,9 +13,10 @@ def initialize(command: str):
         calendarProgram = (which(supportedPrograms[i]))
     if calendarProgram is None:
         return ("You don't have a calendar program installed on your PC.")
-    
+    return openCalendar(calendarProgram)
     #for key, value in functionKeywords.items():
 
 
-def openCalendar():
-    return ("Alright, opening your calendar - " + calendarProgram)
+def openCalendar(calendarProgram):
+    subprocess.call([calendarProgram])
+    return ("Alright, opening your calendar")

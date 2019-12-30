@@ -4,15 +4,7 @@ import nltk
 import json
 import importlib
 import speech_recognition as sr
-import pyttsx3
-
-def initSpeechFeedback():
-    # Currently using espeak, look into possibilities to replace it with Festival
-    speechFeedbackEngine = pyttsx3.init()
-    #rate = speechFeedbackEngine.getProperty('rate')
-    speechFeedbackEngine.setProperty('rate', 150)
-    speechFeedbackEngine.setProperty('voice', 'english+f1')
-    return speechFeedbackEngine
+import modSpeech
 
 def tagAndTokenize(command: str):
     command = command.strip()
@@ -84,10 +76,8 @@ if __name__ == "__main__":
         """
         if module_name != None:
             module = importlib.import_module(f'commands.{module_name}')
-            speechFeedbackEngine = initSpeechFeedback()
+            speechFeedbackEngine = modSpeech.initSpeechFeedback()
             modInitResult = module.initialize(sentenceComposition)
-            print(modInitResult)
-            speechFeedbackEngine.say(modInitResult)
-            speechFeedbackEngine.runAndWait()
+            modSpeech.say(speechFeedbackEngine, modInitResult)
         else:
             print ("Sorry, I can't understand you.")
