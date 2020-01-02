@@ -13,6 +13,9 @@ def initialize(command: str):
         calendarProgram = (which(supportedPrograms[i]))
     if calendarProgram is None:
         return ("You don't have a calendar program installed on your PC.")
+
+    """ Determine the function that needs to be executed: """
+    
     return openCalendar(calendarProgram)
     #for key, value in functionKeywords.items():
 

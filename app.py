@@ -76,8 +76,8 @@ if __name__ == "__main__":
         """
         if module_name != None:
             module = importlib.import_module(f'commands.{module_name}')
-            speechFeedbackEngine = modSpeech.initSpeechFeedback()
             modInitResult = module.initialize(sentenceComposition)
+            speechFeedbackEngine = modSpeech.initSpeechFeedback()
             modSpeech.say(speechFeedbackEngine, modInitResult)
         else:
             print ("Sorry, I can't understand you.")
