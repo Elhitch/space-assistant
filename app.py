@@ -5,6 +5,7 @@ import json
 import importlib
 import speech_recognition as sr
 import modSpeech
+import pika
 
 def tagAndTokenize(command: str):
     command = command.strip()
