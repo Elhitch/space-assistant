@@ -61,9 +61,6 @@ class Recorder:
         self.write(b''.join(rec))
 
     def write(self, recording):
-        n_files = len(os.listdir(f_name_directory))
-
-        #filename = os.path.join(f_name_directory, '{}.wav'.format(n_files))
         filename = os.path.join(f_name_directory, 'lastCmd.wav')
 
         wf = wave.open(filename, 'wb')
