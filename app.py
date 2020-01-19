@@ -6,6 +6,7 @@ import importlib
 import speech_recognition as sr
 import modSpeech
 import pika
+import os
 
 def tagAndTokenize(command: str):
     command = command.strip()
@@ -36,7 +37,23 @@ def find_module(nouns: str) -> str:
                     return key
         return None
 
+def processMessage(ch, method, properties, body):
+    message = body.decode("utf-8")
+    print(message)
+
 if __name__ == "__main__":
+    try:
+        os.system("service rabbitmq-server start")
+        connection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
+        channel = connection.channel()
+        channel.queue_declare(queue='mainComm')
+        channel.basic_consume(queue='mainComm', on_message_callback=processMessage, auto_ack=True)
+        channel.start_consuming()
+    except Exception as e:
+        print("Couldn't start RabbitMQ server, shutting down...")
+        print(e)
+        sys.exit()
+
     inputFromAudio = False
     for i in range(1, len(sys.argv)):
         if sys.argv[i] == "-a":

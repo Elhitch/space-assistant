@@ -4,6 +4,7 @@ import struct
 import wave
 import time
 import os
+import pika
 
 Threshold = 270
 
@@ -49,7 +50,6 @@ class Recorder:
         end = time.time() + TIMEOUT_LENGTH
 
         while current <= end:
-
             data = self.stream.read(chunk)
             if self.rms(data) >= Threshold: end = time.time() + TIMEOUT_LENGTH
 
