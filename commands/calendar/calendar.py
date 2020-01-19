@@ -16,6 +16,7 @@ def initialize(command: str):
 
     """ Determine the function that needs to be executed: """
     
+    
     return openCalendar(calendarProgram)
     #for key, value in functionKeywords.items():
 

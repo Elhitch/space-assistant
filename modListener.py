@@ -16,11 +16,9 @@ swidth = 2
 
 TIMEOUT_LENGTH = 2
 
-#f_name_directory = r'./temp'
 f_name_directory = os.getcwd() + '/temp'
 
 class Recorder:
-
     @staticmethod
     def rms(frame):
         count = len(frame) / swidth
