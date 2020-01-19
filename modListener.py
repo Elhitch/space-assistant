@@ -5,9 +5,11 @@ import wave
 import time
 import os
 import pika
+""" This script detects sound above certain threshold, records it and writes it to a file. """
 
+
+# PyAudio variables
 Threshold = 270
-
 SHORT_NORMALIZE = (1.0/32768.0)
 chunk = 1024
 FORMAT = pyaudio.paInt16
@@ -16,6 +18,7 @@ RATE = 16000
 swidth = 2
 TIMEOUT_LENGTH = 2
 
+# Name of the channel to emit messages to
 MSG_BUS_CHANNEL = "mainComm"
 
 f_name_directory = os.getcwd() + '/temp'

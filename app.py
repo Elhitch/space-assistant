@@ -4,10 +4,11 @@ import nltk
 import json
 import importlib
 import speech_recognition as sr
-#import modSpeech
+import modSpeech
 import pika
 import os
 import subprocess
+from deepspeech import Model
 
 
 def tagAndTokenize(command: str):
@@ -49,9 +50,9 @@ if __name__ == "__main__":
 
     while True:
         if inputFromAudio:
-
             modListener = importlib.import_module("modListener.py")
             modListener.initialize()
+            
 
             # saAudioInput = sr.Recognizer()  
             # with sr.Microphone() as source:
