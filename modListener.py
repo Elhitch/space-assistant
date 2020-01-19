@@ -14,8 +14,9 @@ FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 16000
 swidth = 2
-
 TIMEOUT_LENGTH = 2
+
+MSG_BUS_CHANNEL = "mainComm"
 
 f_name_directory = os.getcwd() + '/temp'
 
@@ -41,10 +42,18 @@ class Recorder:
                                   rate=RATE,
                                   input=True,
                                   output=True,
+                                  input_device_index=None,
                                   frames_per_buffer=chunk)
+        self.msgBusConnection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
+        self.msgBusChannel = self.msgBusConnection.channel()
+        self.msgBusChannel.queue_declare(queue="mainComm")
+        # message = "modListener: Initialized"
+        # self.msgBusChannel.basic_publish(exchange='', routing_key="mainComm", body=message)
 
     def record(self):
         print('Noise detected, recording beginning')
+        # message = "modListener: Noise detected, beginning to record sound"
+        # self.msgBusChannel.basic_publish(exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
         rec = []
         current = time.time()
         end = time.time() + TIMEOUT_LENGTH
@@ -56,6 +65,8 @@ class Recorder:
             current = time.time()
             rec.append(data)
         print("Finished recording")
+        # message = "modListener: Finished recording sound"
+        # self.msgBusChannel.basic_publish(exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
         self.write(b''.join(rec))
 
     def write(self, recording):
@@ -67,8 +78,12 @@ class Recorder:
         wf.setframerate(RATE)
         wf.writeframes(recording)
         wf.close()
-        print('Written to file: {}'.format(filename))
+        #print('Written to file: {}'.format(filename))
+        message = "modListener: Written recording to file {}".format(filename)
+        self.msgBusChannel.basic_publish(exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
         print('Returning to listening')
+        # message = "modListener: Returning to listening"
+        # self.msgBusChannel.basic_publish(exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
 
     def listen(self):
         print('Listening beginning')
@@ -78,6 +93,5 @@ class Recorder:
             if rms_val > Threshold:
                 self.record()
 
-a = Recorder()
-
-a.listen()
+recorder = Recorder()
+recorder.listen()
