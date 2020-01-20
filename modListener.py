@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import pyaudio
 import math
 import struct
@@ -86,17 +87,19 @@ class Recorder:
         message = "modListener: Written recording to file {}".format(filename)
         self.msgBusChannel.basic_publish(exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
         #print('Returning to listening')
-        sys.exit()
+        #sys.exit()
         # message = "modListener: Returning to listening"
         # self.msgBusChannel.basic_publish(exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
 
     def listen(self):
         print('Listening beginning')
-        while True:
+        keepLooping = True
+        while keepLooping:
             input = self.stream.read(chunk)
             rms_val = self.rms(input)
             if rms_val > Threshold:
                 self.record()
+                keepLooping = False
 
 recorder = Recorder()
 recorder.listen()
