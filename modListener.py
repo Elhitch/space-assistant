@@ -3,6 +3,7 @@ import math
 import struct
 import wave
 import time
+import sys
 import os
 import pika
 """ This script detects sound above certain threshold, records it and writes it to a file. """
@@ -84,7 +85,8 @@ class Recorder:
         #print('Written to file: {}'.format(filename))
         message = "modListener: Written recording to file {}".format(filename)
         self.msgBusChannel.basic_publish(exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
-        print('Returning to listening')
+        #print('Returning to listening')
+        sys.exit()
         # message = "modListener: Returning to listening"
         # self.msgBusChannel.basic_publish(exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
 
