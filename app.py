@@ -166,7 +166,6 @@ if __name__ == "__main__":
         if inputFromAudio:
             modListener = Recorder()
             modListener.listen()
-            print("Recorded audio")
             fs, audio = wav.read(PATH_TO_AUDIO)
             print("Trying to analyze...")
             command = ds.stt(audio)
