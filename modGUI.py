@@ -1,11 +1,7 @@
 #!/usr/bin/python
 
-import wx, wx.html
+import wx
 import sys
-
-aboutText = """<p>Sorry, there is no information about this program. It is
-running on version %(wxpy)s of <b>wxPython</b> and %(python)s of <b>Python</b>.
-See <a href="http://wiki.wxpython.org">wxPython Wiki</a></p>"""    
 
 class Frame(wx.Frame):
 
@@ -27,42 +23,54 @@ class Frame(wx.Frame):
         self.msgsCount += 1
 
     def AddUserMessage(self, text):
-        print(self.msgInput.GetValue())
-        self.pushMessage("You", self.msgInput.GetValue())
-        self.msgInput.SetValue("")
+        textCtrlValue = self.msgInput.GetValue()
+        if textCtrlValue != "":
+            print(textCtrlValue)
+            self.pushMessage("You", textCtrlValue)
+            self.msgInput.SetValue("")
 
     def btnRecordPress(self, e):
-        if self.btnRecord.GetValue() == "Record":
-            print self.btnRecord.GetValue()
+        if self.btnRecord.Label == "Record":
+            print(self.btnRecord.Label)
+            self.btnRecord.SetLabel("Stop")
+        else:
+            print(self.btnRecord.Label)
+            self.btnRecord.SetLabel("Record")
 
     def __init__(self, title):
-        wx.Frame.__init__(self, None, title=title, pos=(150,150), size=(400,600), style=wx.DEFAULT_FRAME_STYLE ^ wx.RESIZE_BORDER)
+        wx.Frame.__init__(self, None, title=title, pos=(150,150), size=(400,550), style=wx.DEFAULT_FRAME_STYLE ^ wx.RESIZE_BORDER)
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
         panel = wx.Panel(self)
-        box = wx.BoxSizer(wx.VERTICAL)
+        verticalPanelSizer = wx.BoxSizer(wx.VERTICAL)
 
-        box.AddSpacer(20)
+        verticalPanelSizer.AddSpacer(20)
 
         self.messagesList = []
         self.msgsCount = 0
+
+        horizontalMessagesSizer = wx.BoxSizer(wx.HORIZONTAL)
         for i in range(10):
             newStaticText = wx.StaticText(panel, -1, "")
-            box.Add(newStaticText, 0, wx.ALL, 10)
+            #horizontalMessagesSizer.Add(newStaticText, 0, wx.ALL, 10)
+            verticalPanelSizer.Add(newStaticText, 0, wx.ALL, 10)
             self.messagesList.append(newStaticText)
+        verticalPanelSizer.Add(horizontalMessagesSizer, 0, wx.ALL, 10)
 
-        box.AddSpacer(20)
+        verticalPanelSizer.AddSpacer(20)
         
         self.msgInput = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER, size=(500,40))
         self.msgInput.Bind(wx.EVT_TEXT_ENTER, self.AddUserMessage)
-        box.Add(self.msgInput, 0, wx.ALL, 10)
+        verticalPanelSizer.Add(self.msgInput, 0, wx.ALL, 10)
 
-        box.AddSpacer(20)
-
-        self.btnRecord = wx.Button(panel, label="Record")
+        self.btnRecord = wx.Button(panel, size=(90,40), label="Record")
         self.btnRecord.Bind(wx.EVT_BUTTON, self.btnRecordPress)
 
-        panel.SetSizer(box)
+        horizontalButtonSizer = wx.BoxSizer(wx.HORIZONTAL)
+        horizontalButtonSizer.Add(self.btnRecord, wx.ALL, 0)
+        verticalPanelSizer.Add(horizontalButtonSizer, 0, wx.ALL|wx.CENTER, 0)
+
+        panel.SetSizer(verticalPanelSizer)
         panel.Layout()
 
     def OnClose(self, event):
@@ -73,10 +81,9 @@ class Frame(wx.Frame):
         dlg.Destroy()
         if result == wx.ID_OK:
             self.Destroy()
-        else:
-            self.pushMessage("HA!", "I knew it " + str(self.msgsCount))
+            sys.exit()
 
-app = wx.App()
-top = Frame("Space Assistant")
-top.Show()
-app.MainLoop()
+# app = wx.App()
+# top = Frame("Space Assistant")
+# top.Show()
+# app.MainLoop()

@@ -15,6 +15,10 @@ import time
 import math
 import pyaudio
 import scipy.io.wavfile as wav
+import modGUI
+from multiprocessing import Process
+import _thread
+import wx
 
 # Global path variables
 PATH_TO_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -35,9 +39,43 @@ PATH_TO_TEMP = os.path.abspath(os.path.join(PATH_TO_DIR, 'temp/'))
 # Name of the channel to emit messages to
 MSG_BUS_CHANNEL = "mainComm"
 
-f_name_directory = os.getcwd() + '/temp'
-class Recorder:
+# DeepSpeech constants
+DS_BEAM_WIDTH = 500
+DS_LM_WEIGHT = 1.75
+DS_WORD_COUNT_WEIGHT = 1.00
+DS_VALID_WORD_COUNT_WEIGHT = 1.00
 
+class ModCore:
+    def tagAndTokenize(self, command: str):
+        command = command.strip()
+        tokenized = nltk.word_tokenize(command)
+        tagged_sentence = nltk.pos_tag(tokenized)
+        return tagged_sentence
+
+    def find_nouns(self, tagged_sentence) -> list:
+        """Get the verb out of the sentence."""
+        """command = command.strip()
+        tokenized = nltk.word_tokenize(command)
+        
+        #global tagged_sentence 
+        tagged_sentence = nltk.pos_tag(tokenized)"""
+        is_noun = lambda pos: pos[:2] == 'NN'
+        nouns = [word for (word, pos) in tagged_sentence if is_noun(pos)]
+        return nouns
+
+    def find_module(self, nouns: str) -> str:
+        """Find the matching module based on noun"""
+        with open('config.json') as f:
+            data = json.load(f)
+            # print(data['commands'])
+            """ Iterate through each item noun in the sentence provided by the user. Necessary to eliminate false-positives nouns, e.g. "show". """
+            for noun in nouns:
+                for key, values in data['commands'].items():
+                    if noun in values:
+                        return key
+            return None
+
+class Recorder:
     @staticmethod
     def rms(frame):
         count = len(frame) / swidth
@@ -113,82 +151,187 @@ class Recorder:
                 self.record()
                 keepLooping = False
 
-DS_BEAM_WIDTH = 500
-DS_LM_WEIGHT = 1.75
-DS_WORD_COUNT_WEIGHT = 1.00
-DS_VALID_WORD_COUNT_WEIGHT = 1.00
+class ModGUI(wx.Frame):
 
-def tagAndTokenize(command: str):
-    command = command.strip()
-    tokenized = nltk.word_tokenize(command)
-    tagged_sentence = nltk.pos_tag(tokenized)
-    return tagged_sentence
+    messagesList = []
 
-def find_nouns(tagged_sentence) -> list:
-    """Get the verb out of the sentence."""
-    """command = command.strip()
-    tokenized = nltk.word_tokenize(command)
-    
-    #global tagged_sentence 
-    tagged_sentence = nltk.pos_tag(tokenized)"""
-    is_noun = lambda pos: pos[:2] == 'NN'
-    nouns = [word for (word, pos) in tagged_sentence if is_noun(pos)]
-    return nouns
+    """ Functions to handle back-end operations """
+    def pushMessage(self, createdBy, msgText):
+        msgToAdd = createdBy + ": " + msgText
+        if self.msgsCount < 10:
+            #self.messagesList.append(msgToAdd)
+            for StaticTextObject in self.messagesList:
+                if StaticTextObject.Label == "":
+                    StaticTextObject.SetLabel(msgToAdd)
+                    break
+        else:
+            for i in range(9):
+                self.messagesList[i].SetLabel(self.messagesList[i+1].Label) 
+            self.messagesList[9].SetLabel(msgToAdd)
 
-def find_module(nouns: str) -> str:
-    """Find the matching module based on noun"""
-    with open('config.json') as f:
-        data = json.load(f)
-        # print(data['commands'])
-        """ Iterate through each item noun in the sentence provided by the user. Necessary to eliminate false-positives nouns, e.g. "show". """
-        for noun in nouns:
-            for key, values in data['commands'].items():
-                if noun in values:
-                    return key
-        return None
+        self.msgsCount += 1
 
-if __name__ == "__main__":
-    modMsgBusPath = os.path.abspath(os.path.join(PATH_TO_DIR, 'modMsgBus.py'))
-    subprocess.Popen([modMsgBusPath])
+    def AddUserMessage(self, text):
+        textCtrlValue = self.msgInput.GetValue()
+        if textCtrlValue != "":
+            print(textCtrlValue)
+            self.pushMessage("You", textCtrlValue)
+            self.msgInput.SetValue("")
 
-    dsModelPath = os.path.abspath(os.path.join(PATH_TO_MODEL, "output_graph.pbmm"))
-    dsLMPath = os.path.abspath(os.path.join(PATH_TO_MODEL, "lm.binary"))
-    dsTriePath = os.path.abspath(os.path.join(PATH_TO_MODEL, "trie"))
-    ds = Model(dsModelPath, DS_BEAM_WIDTH)
-    ds.enableDecoderWithLM(dsLMPath, dsTriePath, 0.75, 1.75)
-    
-    inputFromAudio = False
-    for i in range(1, len(sys.argv)):
-        if sys.argv[i] == "-a":
-            inputFromAudio = True
+    def CoreFunctions(self):
+        core = ModCore()
+        # Create a DeepSpeech object
+        dsModelPath = os.path.abspath(os.path.join(PATH_TO_MODEL, "output_graph.pbmm"))
+        dsLMPath = os.path.abspath(os.path.join(PATH_TO_MODEL, "lm.binary"))
+        dsTriePath = os.path.abspath(os.path.join(PATH_TO_MODEL, "trie"))
+        ds = Model(dsModelPath, DS_BEAM_WIDTH)
+        ds.enableDecoderWithLM(dsLMPath, dsTriePath, 0.75, 1.75)
 
-    while True:
-        if inputFromAudio:
+        while True:
+            # if inputFromAudio:
             modListener = Recorder()
             modListener.listen()
             fs, audio = wav.read(PATH_TO_AUDIO)
             print("Trying to analyze...")
             command = ds.stt(audio)
             print("Recognized: " + command)
-        else:
-            command = input('> ')
+            # else:
+            #     command = input('> ')
 
-        sentenceComposition = tagAndTokenize(command)
-        nouns = find_nouns(sentenceComposition)
-        """ 
-            Pass a reversed list of nouns. In imperative sentences nouns usually are last so this should speed up the process in find_module(),
-            especially if the the verb also exists as a noun, e.g. "show".
-        """
-        #tagged_sentence = None
-        module_name = find_module(nouns[::-1])
-        """
-            If the command is recognised, perform further analysis to execute the specific action.
-            Else, notify the user.
-        """
-        if module_name != None:
-            module = importlib.import_module(f'commands.{module_name}')
-            modInitResult = module.initialize(sentenceComposition)
-            speechFeedbackEngine = modSpeech.initSpeechFeedback()
-            modSpeech.say(speechFeedbackEngine, modInitResult)
+            sentenceComposition = core.tagAndTokenize(command)
+            nouns = core.find_nouns(sentenceComposition)
+            """ 
+                Pass a reversed list of nouns. In imperative sentences nouns usually are last so this should speed up the process in find_module(),
+                especially if the the verb also exists as a noun, e.g. "show".
+            """
+            #tagged_sentence = None
+            module_name = core.find_module(nouns[::-1])
+            """
+                If the command is recognised, perform further analysis to execute the specific action.
+                Else, notify the user.
+            """
+            if module_name != None:
+                module = importlib.import_module(f'commands.{module_name}')
+                modInitResult = module.initialize(sentenceComposition)
+                speechFeedbackEngine = modSpeech.initSpeechFeedback()
+                modSpeech.say(speechFeedbackEngine, modInitResult)
+            else:
+                print ("Sorry, I can't understand you.")
+
+    """ Following: Event handlers """
+    def btnRecordPress(self, e):
+        if self.btnRecord.Label == "Record":
+            print(self.btnRecord.Label)
+            self.btnRecord.SetLabel("Stop")
         else:
-            print ("Sorry, I can't understand you.")
+            print(self.btnRecord.Label)
+            self.btnRecord.SetLabel("Record")
+
+    def OnClose(self, event):
+        dlg = wx.MessageDialog(self, 
+            "Do you really want to close Space Assistant?",
+            "Confirm Exit", wx.OK|wx.CANCEL|wx.ICON_QUESTION)
+        result = dlg.ShowModal()
+        dlg.Destroy()
+        if result == wx.ID_OK:
+            self.Destroy()
+            sys.exit()
+
+    """ A function to create UI elements """
+    def initUI(self, title):
+        wx.Frame.__init__(self, None, title=title, pos=(150,150), size=(400,550), style=wx.DEFAULT_FRAME_STYLE ^ wx.RESIZE_BORDER)
+        self.Bind(wx.EVT_CLOSE, self.OnClose)
+
+        panel = wx.Panel(self)
+        verticalPanelSizer = wx.BoxSizer(wx.VERTICAL)
+
+        verticalPanelSizer.AddSpacer(20)
+
+        self.messagesList = []
+        self.msgsCount = 0
+
+        horizontalMessagesSizer = wx.BoxSizer(wx.HORIZONTAL)
+        for i in range(10):
+            newStaticText = wx.StaticText(panel, -1, "")
+            #horizontalMessagesSizer.Add(newStaticText, 0, wx.ALL, 10)
+            verticalPanelSizer.Add(newStaticText, 0, wx.ALL, 10)
+            self.messagesList.append(newStaticText)
+        verticalPanelSizer.Add(horizontalMessagesSizer, 0, wx.ALL, 10)
+
+        verticalPanelSizer.AddSpacer(20)
+        
+        self.msgInput = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER, size=(500,40))
+        self.msgInput.Bind(wx.EVT_TEXT_ENTER, self.AddUserMessage)
+        verticalPanelSizer.Add(self.msgInput, 0, wx.ALL, 10)
+
+        self.btnRecord = wx.Button(panel, size=(90,40), label="Record")
+        self.btnRecord.Bind(wx.EVT_BUTTON, self.btnRecordPress)
+
+        horizontalButtonSizer = wx.BoxSizer(wx.HORIZONTAL)
+        horizontalButtonSizer.Add(self.btnRecord, wx.ALL, 0)
+        verticalPanelSizer.Add(horizontalButtonSizer, 0, wx.ALL|wx.CENTER, 0)
+
+        panel.SetSizer(verticalPanelSizer)
+        panel.Layout()
+
+    def __init__(self, title):
+        self.initUI(title)
+        modMsgBusPath = os.path.abspath(os.path.join(PATH_TO_DIR, 'modMsgBus.py'))
+        subprocess.Popen([modMsgBusPath])
+
+        
+
+if __name__ == "__main__":
+    # test = Process(target=createGUI)
+    # test = _thread.start_new_thread(createGUI, ())
+    # test.run()
+    # test.join()
+    GUIApp = wx.App()
+    GUIObject = ModGUI("Space Assistant")
+    GUIObject.Show()
+    GUIApp.MainLoop()
+
+    # modMsgBusPath = os.path.abspath(os.path.join(PATH_TO_DIR, 'modMsgBus.py'))
+    # subprocess.Popen([modMsgBusPath])
+
+    # dsModelPath = os.path.abspath(os.path.join(PATH_TO_MODEL, "output_graph.pbmm"))
+    # dsLMPath = os.path.abspath(os.path.join(PATH_TO_MODEL, "lm.binary"))
+    # dsTriePath = os.path.abspath(os.path.join(PATH_TO_MODEL, "trie"))
+    # ds = Model(dsModelPath, DS_BEAM_WIDTH)
+    # ds.enableDecoderWithLM(dsLMPath, dsTriePath, 0.75, 1.75)
+    
+    # inputFromAudio = False
+    # for i in range(1, len(sys.argv)):
+    #     if sys.argv[i] == "-a":
+    #         inputFromAudio = True
+
+    # while True:
+    #     if inputFromAudio:
+    #         modListener = Recorder()
+    #         modListener.listen()
+    #         fs, audio = wav.read(PATH_TO_AUDIO)
+    #         print("Trying to analyze...")
+    #         command = ds.stt(audio)
+    #         print("Recognized: " + command)
+    #     else:
+    #         command = input('> ')
+
+    #     sentenceComposition = tagAndTokenize(command)
+    #     nouns = find_nouns(sentenceComposition)
+    #     """ 
+    #         Pass a reversed list of nouns. In imperative sentences nouns usually are last so this should speed up the process in find_module(),
+    #         especially if the the verb also exists as a noun, e.g. "show".
+    #     """
+    #     #tagged_sentence = None
+    #     module_name = find_module(nouns[::-1])
+    #     """
+    #         If the command is recognised, perform further analysis to execute the specific action.
+    #         Else, notify the user.
+    #     """
+    #     if module_name != None:
+    #         module = importlib.import_module(f'commands.{module_name}')
+    #         modInitResult = module.initialize(sentenceComposition)
+    #         speechFeedbackEngine = modSpeech.initSpeechFeedback()
+    #         modSpeech.say(speechFeedbackEngine, modInitResult)
+    #     else:
+    #         print ("Sorry, I can't understand you.")
