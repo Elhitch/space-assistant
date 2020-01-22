@@ -31,6 +31,10 @@ class Frame(wx.Frame):
         self.pushMessage("You", self.msgInput.GetValue())
         self.msgInput.SetValue("")
 
+    def btnRecordPress(self, e):
+        if self.btnRecord.GetValue() == "Record":
+            print self.btnRecord.GetValue()
+
     def __init__(self, title):
         wx.Frame.__init__(self, None, title=title, pos=(150,150), size=(400,600), style=wx.DEFAULT_FRAME_STYLE ^ wx.RESIZE_BORDER)
         self.Bind(wx.EVT_CLOSE, self.OnClose)
@@ -52,6 +56,11 @@ class Frame(wx.Frame):
         self.msgInput = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER, size=(500,40))
         self.msgInput.Bind(wx.EVT_TEXT_ENTER, self.AddUserMessage)
         box.Add(self.msgInput, 0, wx.ALL, 10)
+
+        box.AddSpacer(20)
+
+        self.btnRecord = wx.Button(panel, label="Record")
+        self.btnRecord.Bind(wx.EVT_BUTTON, self.btnRecordPress)
 
         panel.SetSizer(box)
         panel.Layout()
