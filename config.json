@@ -1,6 +1,9 @@
 {
     "commands": {
+        "browser": ["youtube","google","wikipedia"],
+
         "calendar": ["appointment", "calendar"],
-        "alarm": ["alarm", "clock"]
+        "alarm": ["alarm", "clock"],
+        "wikipedia": ["wikipedia"]
     }
 }

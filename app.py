@@ -20,6 +20,8 @@ from multiprocessing import Process
 import _thread
 import wx
 
+from assistant import Assistant
+
 # Global path variables
 PATH_TO_DIR = os.path.dirname(os.path.realpath(__file__))
 PATH_TO_MODEL = os.path.abspath(os.path.join(PATH_TO_DIR, '../ds-model/'))
@@ -286,10 +288,13 @@ if __name__ == "__main__":
     # test = _thread.start_new_thread(createGUI, ())
     # test.run()
     # test.join()
-    GUIApp = wx.App()
-    GUIObject = ModGUI("Space Assistant")
-    GUIObject.Show()
-    GUIApp.MainLoop()
+    # GUIApp = wx.App()
+    # GUIObject = ModGUI("Space Assistant")
+    # GUIObject.Show()
+    # GUIApp.MainLoop()
+
+    assist = Assistant()
+    assist.listen()
 
     # modMsgBusPath = os.path.abspath(os.path.join(PATH_TO_DIR, 'modMsgBus.py'))
     # subprocess.Popen([modMsgBusPath])
