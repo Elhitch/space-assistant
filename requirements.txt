@@ -1,8 +1,9 @@
 pyttsx3==2.71
 PyAudio==0.2.11
 SpeechRecognition==3.8.1
-cryptography==2.6.1
 nltk==3.4.5
+
+cryptography==2.6.1
 numpy==1.17.3
 pika==1.1.0
 Cython==0.29.14
@@ -12,3 +13,5 @@ ordereddict==1.1
 protobuf==3.11.2
 pyOpenSSL==19.1.0
 wincertstore==0.2
+scipy==1.4.1
+deepspeech==0.6.1

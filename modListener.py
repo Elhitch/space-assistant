@@ -25,6 +25,7 @@ MSG_BUS_CHANNEL = "mainComm"
 
 f_name_directory = os.getcwd() + '/temp'
 
+
 class Recorder:
     @staticmethod
     def rms(frame):
@@ -49,7 +50,8 @@ class Recorder:
                                   output=True,
                                   input_device_index=None,
                                   frames_per_buffer=chunk)
-        self.msgBusConnection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
+        self.msgBusConnection = pika.BlockingConnection(
+            pika.ConnectionParameters(host='localhost'))
         self.msgBusChannel = self.msgBusConnection.channel()
         self.msgBusChannel.queue_declare(queue="mainComm")
         # message = "modListener: Initialized"
@@ -65,7 +67,8 @@ class Recorder:
 
         while current <= end:
             data = self.stream.read(chunk)
-            if self.rms(data) >= Threshold: end = time.time() + TIMEOUT_LENGTH
+            if self.rms(data) >= Threshold:
+                end = time.time() + TIMEOUT_LENGTH
 
             current = time.time()
             rec.append(data)
@@ -85,9 +88,10 @@ class Recorder:
         wf.close()
         #print('Written to file: {}'.format(filename))
         message = "modListener: Written recording to file {}".format(filename)
-        self.msgBusChannel.basic_publish(exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
+        self.msgBusChannel.basic_publish(
+            exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
         #print('Returning to listening')
-        #sys.exit()
+        # sys.exit()
         # message = "modListener: Returning to listening"
         # self.msgBusChannel.basic_publish(exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
 
@@ -101,5 +105,5 @@ class Recorder:
                 self.record()
                 keepLooping = False
 
-recorder = Recorder()
-recorder.listen()
+# recorder = Recorder()
+# recorder.listen()
