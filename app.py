@@ -5,7 +5,6 @@ import json
 import importlib
 import speech_recognition as sr
 import modSpeech
-import pika
 import os
 import subprocess
 from deepspeech import Model
@@ -17,8 +16,9 @@ import pyaudio
 import scipy.io.wavfile as wav
 import modGUI
 from multiprocessing import Process
-import _thread
+import threading
 import wx
+import numpy as np
 
 from assistant import Assistant
 
@@ -92,7 +92,8 @@ class Recorder:
 
         return rms * 1000
 
-    def __init__(self):
+    def __init__(self, dsModel):
+        self.ds = dsModel
         self.p = pyaudio.PyAudio()
         self.stream = self.p.open(format=FORMAT,
                                   channels=CHANNELS,
@@ -101,16 +102,10 @@ class Recorder:
                                   output=True,
                                   input_device_index=None,
                                   frames_per_buffer=chunk)
-        self.msgBusConnection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
-        self.msgBusChannel = self.msgBusConnection.channel()
-        self.msgBusChannel.queue_declare(queue="mainComm")
-        # message = "modListener: Initialized"
-        # self.msgBusChannel.basic_publish(exchange='', routing_key="mainComm", body=message)
+        self.stopVariable = False
 
     def record(self):
         print('Noise detected, recording beginning')
-        # message = "modListener: Noise detected, beginning to record sound"
-        # self.msgBusChannel.basic_publish(exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
         rec = []
         current = time.time()
         end = time.time() + TIMEOUT_LENGTH
@@ -122,10 +117,17 @@ class Recorder:
             current = time.time()
             rec.append(data)
         print("Finished recording")
-        # message = "modListener: Finished recording sound"
-        # self.msgBusChannel.basic_publish(exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
-        self.write(b''.join(rec))
+        #self.write(b''.join(rec))
 
+        text = ""
+        stream_context = self.ds.createStream()
+        for frame in rec:
+            if frame is not None:
+                self.ds.feedAudioContent(stream_context, np.frombuffer(frame, np.int16))
+        text = self.ds.finishStream(stream_context)
+        print("Recognized: %s" % text)
+
+    # The following function is not used in the latest versions of the program:
     def write(self, recording):
         filename = os.path.join(PATH_TO_TEMP, 'lastCmd.wav')
 
@@ -135,23 +137,22 @@ class Recorder:
         wf.setframerate(RATE)
         wf.writeframes(recording)
         wf.close()
-        #print('Written to file: {}'.format(filename))
-        message = "modListener: Written recording to file {}".format(filename)
-        self.msgBusChannel.basic_publish(exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
-        #print('Returning to listening')
-        #sys.exit()
-        # message = "modListener: Returning to listening"
-        # self.msgBusChannel.basic_publish(exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
 
     def listen(self):
         print('Listening beginning')
         keepLooping = True
         while keepLooping:
+            
             input = self.stream.read(chunk)
             rms_val = self.rms(input)
             if rms_val > Threshold:
                 self.record()
                 keepLooping = False
+            if self.stopVariable is True:
+                break
+
+    def stop(self):
+        self.stopVariable = True
 
 class ModGUI(wx.Frame):
 
@@ -180,34 +181,26 @@ class ModGUI(wx.Frame):
             self.pushMessage("You", textCtrlValue)
             self.msgInput.SetValue("")
 
-    def CoreFunctions(self):
-        core = ModCore()
-        # Create a DeepSpeech object
-        dsModelPath = os.path.abspath(os.path.join(PATH_TO_MODEL, "output_graph.pbmm"))
-        dsLMPath = os.path.abspath(os.path.join(PATH_TO_MODEL, "lm.binary"))
-        dsTriePath = os.path.abspath(os.path.join(PATH_TO_MODEL, "trie"))
-        ds = Model(dsModelPath, DS_BEAM_WIDTH)
-        ds.enableDecoderWithLM(dsLMPath, dsTriePath, 0.75, 1.75)
-
+    def GetSTT(self):
         while True:
             # if inputFromAudio:
-            modListener = Recorder()
+            modListener = Recorder(self.ds)
             modListener.listen()
             fs, audio = wav.read(PATH_TO_AUDIO)
             print("Trying to analyze...")
-            command = ds.stt(audio)
+            command = self.ds.stt(audio)
             print("Recognized: " + command)
             # else:
             #     command = input('> ')
 
-            sentenceComposition = core.tagAndTokenize(command)
-            nouns = core.find_nouns(sentenceComposition)
+            sentenceComposition = self.core.tagAndTokenize(command)
+            nouns = self.core.find_nouns(sentenceComposition)
             """ 
                 Pass a reversed list of nouns. In imperative sentences nouns usually are last so this should speed up the process in find_module(),
                 especially if the the verb also exists as a noun, e.g. "show".
             """
             #tagged_sentence = None
-            module_name = core.find_module(nouns[::-1])
+            module_name = self.core.find_module(nouns[::-1])
             """
                 If the command is recognised, perform further analysis to execute the specific action.
                 Else, notify the user.
@@ -236,6 +229,9 @@ class ModGUI(wx.Frame):
         result = dlg.ShowModal()
         dlg.Destroy()
         if result == wx.ID_OK:
+            self.runSecondaryThread = False
+            self.secondaryThreadListener.stop()
+            self.secondaryThread.join()
             self.Destroy()
             sys.exit()
 
@@ -276,67 +272,32 @@ class ModGUI(wx.Frame):
         panel.SetSizer(verticalPanelSizer)
         panel.Layout()
 
-    def __init__(self, title):
-        self.initUI(title)
-        modMsgBusPath = os.path.abspath(os.path.join(PATH_TO_DIR, 'modMsgBus.py'))
-        subprocess.Popen([modMsgBusPath])
+    def listenForKeyword(self):
+        while True:
+            self.secondaryThreadListener = Recorder(self.ds)
+            self.secondaryThreadListener.listen()
+            if self.runSecondaryThread is not True:
+                self.secondaryThreadListener.stop()
+                break
 
-        
+    def createSecondThread(self):
+        self.runSecondaryThread = True
+        self.secondaryThread = threading.Thread(target=self.listenForKeyword)
+        self.secondaryThread.start()
+
+    def __init__(self, title):
+        self.core = ModCore()
+        # Create a DeepSpeech object
+        dsModelPath = os.path.abspath(os.path.join(PATH_TO_MODEL, "output_graph.pbmm"))
+        dsLMPath = os.path.abspath(os.path.join(PATH_TO_MODEL, "lm.binary"))
+        dsTriePath = os.path.abspath(os.path.join(PATH_TO_MODEL, "trie"))
+        self.ds = Model(dsModelPath, DS_BEAM_WIDTH)
+        self.ds.enableDecoderWithLM(dsLMPath, dsTriePath, 0.75, 1.75)
+        self.initUI(title)
+        self.createSecondThread()
 
 if __name__ == "__main__":
-    # test = Process(target=createGUI)
-    # test = _thread.start_new_thread(createGUI, ())
-    # test.run()
-    # test.join()
-    # GUIApp = wx.App()
-    # GUIObject = ModGUI("Space Assistant")
-    # GUIObject.Show()
-    # GUIApp.MainLoop()
-
-    assist = Assistant()
-    assist.listen()
-
-    # modMsgBusPath = os.path.abspath(os.path.join(PATH_TO_DIR, 'modMsgBus.py'))
-    # subprocess.Popen([modMsgBusPath])
-
-    # dsModelPath = os.path.abspath(os.path.join(PATH_TO_MODEL, "output_graph.pbmm"))
-    # dsLMPath = os.path.abspath(os.path.join(PATH_TO_MODEL, "lm.binary"))
-    # dsTriePath = os.path.abspath(os.path.join(PATH_TO_MODEL, "trie"))
-    # ds = Model(dsModelPath, DS_BEAM_WIDTH)
-    # ds.enableDecoderWithLM(dsLMPath, dsTriePath, 0.75, 1.75)
-    
-    # inputFromAudio = False
-    # for i in range(1, len(sys.argv)):
-    #     if sys.argv[i] == "-a":
-    #         inputFromAudio = True
-
-    # while True:
-    #     if inputFromAudio:
-    #         modListener = Recorder()
-    #         modListener.listen()
-    #         fs, audio = wav.read(PATH_TO_AUDIO)
-    #         print("Trying to analyze...")
-    #         command = ds.stt(audio)
-    #         print("Recognized: " + command)
-    #     else:
-    #         command = input('> ')
-
-    #     sentenceComposition = tagAndTokenize(command)
-    #     nouns = find_nouns(sentenceComposition)
-    #     """ 
-    #         Pass a reversed list of nouns. In imperative sentences nouns usually are last so this should speed up the process in find_module(),
-    #         especially if the the verb also exists as a noun, e.g. "show".
-    #     """
-    #     #tagged_sentence = None
-    #     module_name = find_module(nouns[::-1])
-    #     """
-    #         If the command is recognised, perform further analysis to execute the specific action.
-    #         Else, notify the user.
-    #     """
-    #     if module_name != None:
-    #         module = importlib.import_module(f'commands.{module_name}')
-    #         modInitResult = module.initialize(sentenceComposition)
-    #         speechFeedbackEngine = modSpeech.initSpeechFeedback()
-    #         modSpeech.say(speechFeedbackEngine, modInitResult)
-    #     else:
-    #         print ("Sorry, I can't understand you.")
+    GUIApp = wx.App()
+    GUIObject = ModGUI("Space Assistant")
+    GUIObject.Show()
+    GUIApp.MainLoop()
