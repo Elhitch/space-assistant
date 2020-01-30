@@ -119,13 +119,12 @@ class Recorder:
         print("Finished recording")
         #self.write(b''.join(rec))
 
-        text = ""
         stream_context = self.ds.createStream()
         for frame in rec:
             if frame is not None:
                 self.ds.feedAudioContent(stream_context, np.frombuffer(frame, np.int16))
-        text = self.ds.finishStream(stream_context)
-        print("Recognized: %s" % text)
+        self.recognizedText = self.ds.finishStream(stream_context)
+        print("Recognized: %s" % self.recognizedText)
 
     # The following function is not used in the latest versions of the program:
     def write(self, recording):
@@ -141,15 +140,14 @@ class Recorder:
     def listen(self):
         print('Listening beginning')
         keepLooping = True
-        while keepLooping:
-            
+        while True:
+            if self.stopVariable is True:
+                break
             input = self.stream.read(chunk)
             rms_val = self.rms(input)
             if rms_val > Threshold:
                 self.record()
-                keepLooping = False
-            if self.stopVariable is True:
-                break
+                return self.recognizedText
 
     def stop(self):
         self.stopVariable = True
@@ -174,52 +172,65 @@ class ModGUI(wx.Frame):
 
         self.msgsCount += 1
 
-    def AddUserMessage(self, text):
-        textCtrlValue = self.msgInput.GetValue()
-        if textCtrlValue != "":
-            print(textCtrlValue)
-            self.pushMessage("You", textCtrlValue)
-            self.msgInput.SetValue("")
+    def AddUserMessage(self, object, text=""):
+        """
+            If object is not None, then the function wasn't called by the event
+            handler of the WX TextCtrl object.
+        """
+        if object is not None:
+            textCtrlValue = self.msgInput.GetValue()
+            if textCtrlValue != "":
+                print(textCtrlValue)
+                self.pushMessage("You", textCtrlValue)
+                self.msgInput.SetValue("")
+                self.ProcessCommand(textCtrlValue)
+        else:
+            pass
+            self.pushMessage("You", text)
+
+    def ProcessCommand(self, command):
+        sentenceComposition = self.core.tagAndTokenize(command)
+        nouns = self.core.find_nouns(sentenceComposition)
+        """ 
+            Pass a reversed list of nouns. In imperative sentences nouns usually are last so this should speed up the process in find_module(),
+            especially if the the verb also exists as a noun, e.g. "show".
+        """
+        #tagged_sentence = None
+        module_name = self.core.find_module(nouns[::-1])
+        """
+            If the command is recognised, perform further analysis to execute the specific action.
+            Else, notify the user.
+        """
+        if module_name != None:
+            module = importlib.import_module(f'commands.{module_name}')
+            # !!! Passes the tokenized sentence as well
+            modInitResult = module.initialize(sentenceComposition)
+            speechFeedbackEngine = modSpeech.initSpeechFeedback()
+            modSpeech.say(speechFeedbackEngine, modInitResult)
+        else:
+            print ("Sorry, I can't understand you.")
 
     def GetSTT(self):
         while True:
-            # if inputFromAudio:
             modListener = Recorder(self.ds)
             modListener.listen()
-            fs, audio = wav.read(PATH_TO_AUDIO)
-            print("Trying to analyze...")
+            # fs, audio = wav.read(PATH_TO_AUDIO)
+            # print("Trying to analyze...")
             command = self.ds.stt(audio)
             print("Recognized: " + command)
-            # else:
-            #     command = input('> ')
 
-            sentenceComposition = self.core.tagAndTokenize(command)
-            nouns = self.core.find_nouns(sentenceComposition)
-            """ 
-                Pass a reversed list of nouns. In imperative sentences nouns usually are last so this should speed up the process in find_module(),
-                especially if the the verb also exists as a noun, e.g. "show".
-            """
-            #tagged_sentence = None
-            module_name = self.core.find_module(nouns[::-1])
-            """
-                If the command is recognised, perform further analysis to execute the specific action.
-                Else, notify the user.
-            """
-            if module_name != None:
-                module = importlib.import_module(f'commands.{module_name}')
-                modInitResult = module.initialize(sentenceComposition)
-                speechFeedbackEngine = modSpeech.initSpeechFeedback()
-                modSpeech.say(speechFeedbackEngine, modInitResult)
-            else:
-                print ("Sorry, I can't understand you.")
+            
 
     """ Following: Event handlers """
     def btnRecordPress(self, e):
         if self.btnRecord.Label == "Record":
             print(self.btnRecord.Label)
+            #self.runSecondaryThread = False
+            self.stopSecondThread()
             self.btnRecord.SetLabel("Stop")
         else:
             print(self.btnRecord.Label)
+            self.createSecondThread()
             self.btnRecord.SetLabel("Record")
 
     def OnClose(self, event):
@@ -273,17 +284,27 @@ class ModGUI(wx.Frame):
         panel.Layout()
 
     def listenForKeyword(self):
-        while True:
+        while self.runSecondaryThread:
             self.secondaryThreadListener = Recorder(self.ds)
-            self.secondaryThreadListener.listen()
-            if self.runSecondaryThread is not True:
-                self.secondaryThreadListener.stop()
-                break
+            recognizedText = self.secondaryThreadListener.listen()
+            if recognizedText is not None:
+                if recognizedText == "hi space":
+                    print("Start recording real command")
+                    # More code should come here
+                # The call below doesn't work but must be programmed by other means
+                # self.AddUserMessage(None, recognizedText.strip())
+
+        print("Secondary thread listener stopped")
 
     def createSecondThread(self):
         self.runSecondaryThread = True
         self.secondaryThread = threading.Thread(target=self.listenForKeyword)
         self.secondaryThread.start()
+
+    def stopSecondThread(self):
+        self.runSecondaryThread = False
+        self.secondaryThreadListener.stop()
+        self.secondaryThread.join()
 
     def __init__(self, title):
         self.core = ModCore()
