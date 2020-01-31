@@ -1,4 +1,3 @@
-#!/usr/bin/python
 import pyaudio
 import math
 import struct
@@ -6,9 +5,14 @@ import wave
 import time
 import sys
 import os
-import pika
-""" This script detects sound above certain threshold, records it and writes it to a file. """
+from deepspeech import Model
+import numpy as np
+#import scipy.io.wavfile as wav
 
+# Global path variables
+PATH_TO_DIR = os.path.dirname(os.path.realpath(__file__))
+PATH_TO_MODEL = os.path.abspath(os.path.join(PATH_TO_DIR, '../ds-model/'))
+#PATH_TO_AUDIO = os.path.abspath(os.path.join(PATH_TO_DIR, 'temp/lastCmd.wav'))
 
 # PyAudio variables
 Threshold = 270
@@ -40,7 +44,8 @@ class Recorder:
 
         return rms * 1000
 
-    def __init__(self):
+    def __init__(self, dsModel):
+        self.ds = dsModel
         self.p = pyaudio.PyAudio()
         self.stream = self.p.open(format=FORMAT,
                                   channels=CHANNELS,
@@ -49,16 +54,10 @@ class Recorder:
                                   output=True,
                                   input_device_index=None,
                                   frames_per_buffer=chunk)
-        self.msgBusConnection = pika.BlockingConnection(pika.ConnectionParameters(host='localhost'))
-        self.msgBusChannel = self.msgBusConnection.channel()
-        self.msgBusChannel.queue_declare(queue="mainComm")
-        # message = "modListener: Initialized"
-        # self.msgBusChannel.basic_publish(exchange='', routing_key="mainComm", body=message)
+        self.stopVariable = False
 
     def record(self):
         print('Noise detected, recording beginning')
-        # message = "modListener: Noise detected, beginning to record sound"
-        # self.msgBusChannel.basic_publish(exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
         rec = []
         current = time.time()
         end = time.time() + TIMEOUT_LENGTH
@@ -70,12 +69,18 @@ class Recorder:
             current = time.time()
             rec.append(data)
         print("Finished recording")
-        # message = "modListener: Finished recording sound"
-        # self.msgBusChannel.basic_publish(exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
-        self.write(b''.join(rec))
+        #self.write(b''.join(rec))
 
+        stream_context = self.ds.createStream()
+        for frame in rec:
+            if frame is not None:
+                self.ds.feedAudioContent(stream_context, np.frombuffer(frame, np.int16))
+        self.recognizedText = self.ds.finishStream(stream_context)
+        print("Recognized: %s" % self.recognizedText)
+
+    # The following function is not used in the latest versions of the program:
     def write(self, recording):
-        filename = os.path.join(f_name_directory, 'lastCmd.wav')
+        filename = os.path.join(PATH_TO_TEMP, 'lastCmd.wav')
 
         wf = wave.open(filename, 'wb')
         wf.setnchannels(CHANNELS)
@@ -83,23 +88,18 @@ class Recorder:
         wf.setframerate(RATE)
         wf.writeframes(recording)
         wf.close()
-        #print('Written to file: {}'.format(filename))
-        message = "modListener: Written recording to file {}".format(filename)
-        self.msgBusChannel.basic_publish(exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
-        #print('Returning to listening')
-        #sys.exit()
-        # message = "modListener: Returning to listening"
-        # self.msgBusChannel.basic_publish(exchange='', routing_key=MSG_BUS_CHANNEL, body=message)
 
     def listen(self):
         print('Listening beginning')
         keepLooping = True
-        while keepLooping:
+        while True:
+            if self.stopVariable is True:
+                break
             input = self.stream.read(chunk)
             rms_val = self.rms(input)
             if rms_val > Threshold:
                 self.record()
-                keepLooping = False
+                return self.recognizedText
 
-recorder = Recorder()
-recorder.listen()
+    def stop(self):
+        self.stopVariable = True
