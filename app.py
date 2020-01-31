@@ -23,20 +23,6 @@ DS_LM_WEIGHT = 1.75
 DS_WORD_COUNT_WEIGHT = 1.00
 DS_VALID_WORD_COUNT_WEIGHT = 1.00
 
-# class ListeningThread:
-#     def __init__(self):
-#         self.runThread = True
-    
-#     def createNewListeningThread(self):
-#         self.runSecondaryThread = True
-#         self.secondaryThread = threading.Thread(target=self.listenForAudioInput)
-#         self.secondaryThread.start()
-
-#     def stopListeningThread(self):
-#         self.runSecondaryThread = False
-#         self.secondaryThreadListener.stop()
-#         self.secondaryThread.join()
-
 class ModGUI(wx.Frame):
     listenerThreadList = {
         "main" : {
@@ -67,8 +53,9 @@ class ModGUI(wx.Frame):
             self.messagesList[9].SetLabel(msgToAdd)
 
         self.msgsCount += 1
+        self.UpdateWindowUI(wx.UPDATE_UI_FROMIDLE)
 
-    def AddUserMessage(self, object, text=""):
+    def AddUIMessage(self, object, text=""):
         """
             If object is not None, then the function wasn't called by the event
             handler of the WX TextCtrl object.
@@ -101,10 +88,12 @@ class ModGUI(wx.Frame):
             module = importlib.import_module(f'commands.{module_name}')
             # !!! Passes the tokenized sentence as well
             modInitResult = module.initialize(sentenceComposition)
+            self.pushMessage("SA", modInitResult)
             speechFeedbackEngine = modSpeech.initSpeechFeedback()
             modSpeech.say(speechFeedbackEngine, modInitResult)
         else:
             print ("Sorry, I can't understand you.")
+            self.pushMessage("SA", "Sorry, I can't understand you.")
 
     """ Following: Event handlers """
     def btnRecordPress(self, e):
@@ -157,7 +146,7 @@ class ModGUI(wx.Frame):
         verticalPanelSizer.AddSpacer(20)
         
         self.msgInput = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER, size=(500,40))
-        self.msgInput.Bind(wx.EVT_TEXT_ENTER, self.AddUserMessage)
+        self.msgInput.Bind(wx.EVT_TEXT_ENTER, self.AddUIMessage)
         verticalPanelSizer.Add(self.msgInput, 0, wx.ALL, 10)
 
         self.btnRecord = wx.Button(panel, size=(90,40), label="Record")
@@ -181,8 +170,11 @@ class ModGUI(wx.Frame):
             while self.listenerThreadList[whichThread]["isRunning"]:
                 recognizedText = self.listenerThreadList[whichThread]["listener"].listen()
                 if recognizedText is not None:
-                    if recognizedText == "hi space":
+                    if recognizedText == "space":
                         print("Start recording real command")
+                        #self.stopListeningThread("secondary")
+                        self.listenerThreadList["secondary"]["listener"].stop()
+                        self.createNewListeningThread("main")
                     # More code should come here
                 # The call below doesn't work but must be programmed by other means
                 # self.AddUserMessage(None, recognizedText.strip())
