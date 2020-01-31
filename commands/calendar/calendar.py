@@ -8,14 +8,15 @@ functionKeywords = {
     'close': ['close', 'hide']
 }
 
-
-def initialize(verb, sentance):
+def initialize(sentance):
     is_open = False
-    supportedPrograms = ['kontact', 'korganizer', 'gnome-calendar']
     calendarProgram = None
+    supportedPrograms = ['kontact', 'korganizer', 'gnome-calendar']
 
     for i in range(len(supportedPrograms)):
         calendarProgram = which(supportedPrograms[i])
+        if calendarProgram is not None:
+            break
 
     if not calendarProgram:
         return ('You don\'t have a calendar program installed on your PC.')
@@ -44,15 +45,9 @@ def initialize(verb, sentance):
     #         is_open = True
     #         return openCalendar(calendarProgram)
 
-
-def f():
-    subprocess.call(calendarProgram)
-
-
 def openCalendar(calendarProgram):
-    subprocess.call(calendarProgram)
+    subprocess.Popen(calendarProgram)
     # multiprocessing.Process(target=calendarProgram)
-
 
 # def closeCalendar(calendarProgram):
 #     program_name = calendarProgram.split('/')[-1]

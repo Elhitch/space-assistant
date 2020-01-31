@@ -1,9 +1,8 @@
 #!/usr/bin/python
 import sys
-import nltk
-import json
+# import nltk
+# import json
 import importlib
-import speech_recognition as sr
 import os
 import subprocess
 from deepspeech import Model
@@ -24,8 +23,33 @@ DS_LM_WEIGHT = 1.75
 DS_WORD_COUNT_WEIGHT = 1.00
 DS_VALID_WORD_COUNT_WEIGHT = 1.00
 
-class ModGUI(wx.Frame):
+# class ListeningThread:
+#     def __init__(self):
+#         self.runThread = True
+    
+#     def createNewListeningThread(self):
+#         self.runSecondaryThread = True
+#         self.secondaryThread = threading.Thread(target=self.listenForAudioInput)
+#         self.secondaryThread.start()
 
+#     def stopListeningThread(self):
+#         self.runSecondaryThread = False
+#         self.secondaryThreadListener.stop()
+#         self.secondaryThread.join()
+
+class ModGUI(wx.Frame):
+    listenerThreadList = {
+        "main" : {
+            "thread": None,
+            "listener": None,
+            "isRunning": False
+        },
+        "secondary" : {
+            "thread": None,
+            "listener": None,
+            "isRunning": False
+        }
+    }
     messagesList = []
 
     """ Functions to handle back-end operations """
@@ -82,27 +106,19 @@ class ModGUI(wx.Frame):
         else:
             print ("Sorry, I can't understand you.")
 
-    def GetSTT(self):
-        #while True:
-        modListener = Recorder(self.ds)
-        command = modListener.listen()
-        # fs, audio = wav.read(PATH_TO_AUDIO)
-        # print("Trying to analyze...")
-        #command = self.ds.stt(audio)
-        print("Recognized: " + command)
-
     """ Following: Event handlers """
     def btnRecordPress(self, e):
         if self.btnRecord.Label == "Record":
             print(self.btnRecord.Label)
             #self.runSecondaryThread = False
-            self.stopSecondaryThread()
+            #self.stopListeningThread("secondary")
+            self.createNewListeningThread("main")
             self.btnRecord.SetLabel("Stop")
-            self.GetSTT()
-            self.btnRecord.SetLabel("Record")
+            #self.GetSTT()
         else:
             print(self.btnRecord.Label)
-            self.createSecondaryThread()
+            self.stopListeningThread("main")
+            self.createNewListeningThread("secondary")
             self.btnRecord.SetLabel("Record")
 
     def OnClose(self, event):
@@ -112,9 +128,8 @@ class ModGUI(wx.Frame):
         result = dlg.ShowModal()
         dlg.Destroy()
         if result == wx.ID_OK:
-            self.runSecondaryThread = False
-            self.secondaryThreadListener.stop()
-            self.secondaryThread.join()
+            self.stopListeningThread("main")
+            self.stopListeningThread("secondary")
             self.Destroy()
             sys.exit()
 
@@ -155,28 +170,39 @@ class ModGUI(wx.Frame):
         panel.SetSizer(verticalPanelSizer)
         panel.Layout()
 
-    def listenForKeyword(self):
-        while self.runSecondaryThread:
-            self.secondaryThreadListener = Recorder(self.ds)
-            recognizedText = self.secondaryThreadListener.listen()
+    def listenForAudioInput(self, whichThread):
+        self.listenerThreadList[whichThread]["listener"] = Recorder(self.ds)
+        if whichThread == "main":
+            recognizedText = self.listenerThreadList[whichThread]["listener"].listen()
+            self.btnRecord.SetLabel("Record")
             if recognizedText is not None:
-                if recognizedText == "hi space":
-                    print("Start recording real command")
+                self.ProcessCommand(recognizedText)
+        elif whichThread == "secondary":
+            while self.listenerThreadList[whichThread]["isRunning"]:
+                recognizedText = self.listenerThreadList[whichThread]["listener"].listen()
+                if recognizedText is not None:
+                    if recognizedText == "hi space":
+                        print("Start recording real command")
                     # More code should come here
                 # The call below doesn't work but must be programmed by other means
                 # self.AddUserMessage(None, recognizedText.strip())
 
-        print("Secondary thread listener stopped")
+        print(whichThread + " thread listener stopped")
 
-    def createSecondaryThread(self):
-        self.runSecondaryThread = True
-        self.secondaryThread = threading.Thread(target=self.listenForKeyword)
-        self.secondaryThread.start()
+    def createNewListeningThread(self, whichThread):
+        if whichThread == "main":
+            if self.listenerThreadList["secondary"]["isRunning"]:
+                self.stopListeningThread("secondary")
+                
+        self.listenerThreadList[whichThread]["isRunning"] = True
+        self.listenerThreadList[whichThread]["thread"] = threading.Thread(target=self.listenForAudioInput, args=(whichThread,))
+        self.listenerThreadList[whichThread]["thread"].start()
 
-    def stopSecondaryThread(self):
-        self.runSecondaryThread = False
-        self.secondaryThreadListener.stop()
-        self.secondaryThread.join()
+    def stopListeningThread(self, whichThread):
+        if self.listenerThreadList[whichThread]["isRunning"]:
+            self.listenerThreadList[whichThread]["isRunning"] = False
+            self.listenerThreadList[whichThread]["listener"].stop()
+            self.listenerThreadList[whichThread]["thread"].join()
 
     def __init__(self, title):
         self.core = Core()
@@ -187,7 +213,7 @@ class ModGUI(wx.Frame):
         self.ds = Model(dsModelPath, DS_BEAM_WIDTH)
         self.ds.enableDecoderWithLM(dsLMPath, dsTriePath, 0.75, 1.75)
         self.initUI(title)
-        self.createSecondaryThread()
+        self.createNewListeningThread("secondary")
 
 if __name__ == "__main__":
     GUIApp = wx.App()

@@ -1,3 +1,6 @@
+import nltk
+import json
+
 class Core:
     def tagAndTokenize(self, command: str):
         command = command.strip()
