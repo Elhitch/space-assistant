@@ -24,7 +24,6 @@ DS_LM_WEIGHT = 1.75
 DS_WORD_COUNT_WEIGHT = 1.00
 DS_VALID_WORD_COUNT_WEIGHT = 1.00
 
-
 class ModGUI(wx.Frame):
     listenerThreadList = {
         "main": {
@@ -41,6 +40,10 @@ class ModGUI(wx.Frame):
     messagesList = []
 
     """ Functions to handle back-end operations """
+
+    def SayAndLog(self, msg):
+        modSpeech.say(msg)
+        self.pushMessage("SA", msg)
 
     def pushMessage(self, createdBy, msgText):
         msgToAdd = createdBy + ": " + msgText
@@ -93,19 +96,10 @@ class ModGUI(wx.Frame):
             # !!! Passes the tokenized sentence as well
             modInitResult = module.initialize(sentenceComposition)
             print(f'modInitResult - {modInitResult}')
-            modSpeech.say(modInitResult)
-            if self.active:
-                self.createNewListeningThread("main")
-            else:
-                self.stopListeningThread("main")
-                self.createNewListeningThread("secondary")
+            # modSpeech.say(modInitResult)
+            self.SayAndLog(modInitResult)
         else:
-            modSpeech.say("Sorry, I can't understand you.")
-            if self.active:
-                self.createNewListeningThread("main")
-            else:
-                self.stopListeningThread("main")
-                self.createNewListeningThread("secondary")
+            self.SayAndLog("Sorry, I can't understand you.")
 
     """ Following: Event handlers """
 
@@ -113,7 +107,7 @@ class ModGUI(wx.Frame):
         if self.btnRecord.Label == "Record":
             print(self.btnRecord.Label)
             # self.runSecondaryThread = False
-            # self.stopListeningThread("secondary")
+            self.stopListeningThread("secondary")
             self.createNewListeningThread("main")
             self.btnRecord.SetLabel("Stop")
             # self.GetSTT()
@@ -178,21 +172,19 @@ class ModGUI(wx.Frame):
     def listenForAudioInput(self, whichThread):
         self.listenerThreadList[whichThread]["listener"] = Recorder(self.ds)
         if whichThread == "main":
-            print("HELLO")
-            recognizedText = self.listenerThreadList[whichThread]["listener"].listen(
-            )
+            print("Starting main thread")
+            recognizedText = self.listenerThreadList[whichThread]["listener"].listen()
             # self.btnRecord.SetLabel("Record")
-            if "by" in recognizedText.split():
-                modSpeech.say("Bye bye!")
-                self.active = False
-                self.stopListeningThread("main")
-                self.createNewListeningThread("secondary")
-            elif recognizedText is not None:
+            # if "by" in recognizedText.split():
+            #     modSpeech.say("Bye bye!")
+            #     self.stopListeningThread("main")
+            #     self.createNewListeningThread("secondary")
+            # elif recognizedText is not None:
+            if recognizedText is not None:
                 self.ProcessCommand(recognizedText)
-        elif whichThread == "secondary" and not self.active:
+        elif whichThread == "secondary":
             while self.listenerThreadList[whichThread]["isRunning"]:
-                recognizedText = self.listenerThreadList[whichThread]["listener"].listen(
-                )
+                recognizedText = self.listenerThreadList[whichThread]["listener"].listen()
                 if recognizedText is not None:
                     if recognizedText == "space":
                         self.active = True
@@ -216,15 +208,16 @@ class ModGUI(wx.Frame):
         self.listenerThreadList[whichThread]["thread"] = threading.Thread(
             target=self.listenForAudioInput, args=(whichThread,))
         self.listenerThreadList[whichThread]["thread"].start()
+        print("Started thread " + whichThread)
 
     def stopListeningThread(self, whichThread):
         if self.listenerThreadList[whichThread]["isRunning"]:
             self.listenerThreadList[whichThread]["isRunning"] = False
             self.listenerThreadList[whichThread]["listener"].stop()
-            # self.listenerThreadList[whichThread]["thread"].join()
+            self.listenerThreadList[whichThread]["thread"].join()
+            print("Stopped thread " + whichThread)
 
     def __init__(self, title):
-        self.active = False
         self.core = Core()
         # Create a DeepSpeech object
         dsModelPath = os.path.abspath(

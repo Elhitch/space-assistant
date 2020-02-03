@@ -15,7 +15,8 @@ PATH_TO_MODEL = os.path.abspath(os.path.join(PATH_TO_DIR, '../ds-model/'))
 #PATH_TO_AUDIO = os.path.abspath(os.path.join(PATH_TO_DIR, 'temp/lastCmd.wav'))
 
 # PyAudio variables
-Threshold = 150
+# Threshold = 150
+Threshold = 270
 SHORT_NORMALIZE = (1.0/32768.0)
 chunk = 1024
 FORMAT = pyaudio.paInt16
@@ -71,9 +72,7 @@ class Recorder:
 
             current = time.time()
             rec.append(data)
-        # print(data)
         print("Finished recording")
-        # self.write(b''.join(rec))
 
         stream_context = self.ds.createStream()
         for frame in rec:
