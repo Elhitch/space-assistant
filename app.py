@@ -16,7 +16,7 @@ import modSpeech
 # Global path variables
 PATH_TO_DIR = os.path.dirname(os.path.realpath(__file__))
 PATH_TO_MODEL = os.path.abspath(os.path.join(PATH_TO_DIR, '../ds-model/'))
-#PATH_TO_AUDIO = os.path.abspath(os.path.join(PATH_TO_DIR, 'temp/lastCmd.wav'))
+# PATH_TO_AUDIO = os.path.abspath(os.path.join(PATH_TO_DIR, 'temp/lastCmd.wav'))
 
 # DeepSpeech constants
 DS_BEAM_WIDTH = 500
@@ -77,11 +77,11 @@ class ModGUI(wx.Frame):
     def ProcessCommand(self, command):
         sentenceComposition = self.core.tagAndTokenize(command)
         nouns = self.core.find_nouns(sentenceComposition)
-        """ 
+        """
             Pass a reversed list of nouns. In imperative sentences nouns usually are last so this should speed up the process in find_module(),
             especially if the the verb also exists as a noun, e.g. "show".
         """
-        #tagged_sentence = None
+        # tagged_sentence = None
         module_name = self.core.find_module(nouns[::-1])
         print(module_name)
         """
@@ -94,17 +94,25 @@ class ModGUI(wx.Frame):
             modInitResult = module.initialize(sentenceComposition)
             print(f'modInitResult - {modInitResult}')
             modSpeech.say(modInitResult)
+            if self.active:
+                self.createNewListeningThread("main")
+            else:
+                self.stopListeningThread("main")
+                self.createNewListeningThread("secondary")
         else:
             modSpeech.say("Sorry, I can't understand you.")
-            # self.pushMessage("SA", "Sorry, I can't understand you.")
-            # modSpeech.say(speechFeedbackEngine, modInitResult)
+            if self.active:
+                self.createNewListeningThread("main")
+            else:
+                self.stopListeningThread("main")
+                self.createNewListeningThread("secondary")
 
     """ Following: Event handlers """
 
     def btnRecordPress(self, e):
         if self.btnRecord.Label == "Record":
             print(self.btnRecord.Label)
-            #self.runSecondaryThread = False
+            # self.runSecondaryThread = False
             # self.stopListeningThread("secondary")
             self.createNewListeningThread("main")
             self.btnRecord.SetLabel("Stop")
@@ -145,7 +153,7 @@ class ModGUI(wx.Frame):
         horizontalMessagesSizer = wx.BoxSizer(wx.HORIZONTAL)
         for i in range(10):
             newStaticText = wx.StaticText(panel, -1, "")
-            #horizontalMessagesSizer.Add(newStaticText, 0, wx.ALL, 10)
+            # horizontalMessagesSizer.Add(newStaticText, 0, wx.ALL, 10)
             verticalPanelSizer.Add(newStaticText, 0, wx.ALL, 10)
             self.messagesList.append(newStaticText)
         verticalPanelSizer.Add(horizontalMessagesSizer, 0, wx.ALL, 10)
@@ -171,16 +179,25 @@ class ModGUI(wx.Frame):
         self.listenerThreadList[whichThread]["listener"] = Recorder(self.ds)
         if whichThread == "main":
             print("HELLO")
-            recognizedText = self.listenerThreadList[whichThread]["listener"].listen()
+            recognizedText = self.listenerThreadList[whichThread]["listener"].listen(
+            )
             # self.btnRecord.SetLabel("Record")
-            if recognizedText is not None:
+            if "by" in recognizedText.split():
+                modSpeech.say("Bye bye!")
+                self.active = False
+                self.stopListeningThread("main")
+                self.createNewListeningThread("secondary")
+            elif recognizedText is not None:
                 self.ProcessCommand(recognizedText)
-        elif whichThread == "secondary":
+        elif whichThread == "secondary" and not self.active:
             while self.listenerThreadList[whichThread]["isRunning"]:
-                recognizedText = self.listenerThreadList[whichThread]["listener"].listen()
+                recognizedText = self.listenerThreadList[whichThread]["listener"].listen(
+                )
                 if recognizedText is not None:
                     if recognizedText == "space":
-                        print("Start recording real command")
+                        self.active = True
+                        modSpeech.say('Hello! How can I help you?')
+                        # print("Start recording real command")
                         # self.stopListeningThread("secondary")
                         self.listenerThreadList["secondary"]["listener"].stop()
                         self.createNewListeningThread("main")
@@ -188,7 +205,7 @@ class ModGUI(wx.Frame):
                 # The call below doesn't work but must be programmed by other means
                 # self.AddUserMessage(None, recognizedText.strip())
 
-        print(whichThread + " thread listener stopped")
+        # print(whichThread + " thread listener stopped")
 
     def createNewListeningThread(self, whichThread):
         if whichThread == "main":
@@ -207,6 +224,7 @@ class ModGUI(wx.Frame):
             # self.listenerThreadList[whichThread]["thread"].join()
 
     def __init__(self, title):
+        self.active = False
         self.core = Core()
         # Create a DeepSpeech object
         dsModelPath = os.path.abspath(
