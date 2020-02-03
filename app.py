@@ -187,7 +187,6 @@ class ModGUI(wx.Frame):
                 recognizedText = self.listenerThreadList[whichThread]["listener"].listen()
                 if recognizedText is not None:
                     if recognizedText == "space":
-                        self.active = True
                         modSpeech.say('Hello! How can I help you?')
                         # print("Start recording real command")
                         # self.stopListeningThread("secondary")
