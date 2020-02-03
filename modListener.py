@@ -15,7 +15,7 @@ PATH_TO_MODEL = os.path.abspath(os.path.join(PATH_TO_DIR, '../ds-model/'))
 #PATH_TO_AUDIO = os.path.abspath(os.path.join(PATH_TO_DIR, 'temp/lastCmd.wav'))
 
 # PyAudio variables
-Threshold = 270
+Threshold = 150
 SHORT_NORMALIZE = (1.0/32768.0)
 chunk = 1024
 FORMAT = pyaudio.paInt16
@@ -28,6 +28,7 @@ TIMEOUT_LENGTH = 2
 MSG_BUS_CHANNEL = "mainComm"
 
 f_name_directory = os.getcwd() + '/temp'
+
 
 class Recorder:
     @staticmethod
@@ -55,6 +56,7 @@ class Recorder:
                                   input_device_index=None,
                                   frames_per_buffer=chunk)
         self.stopVariable = False
+        self.recognizedText = None
 
     def record(self):
         print('Noise detected, recording beginning')
@@ -64,17 +66,20 @@ class Recorder:
 
         while current <= end:
             data = self.stream.read(chunk)
-            if self.rms(data) >= Threshold: end = time.time() + TIMEOUT_LENGTH
+            if self.rms(data) >= Threshold:
+                end = time.time() + TIMEOUT_LENGTH
 
             current = time.time()
             rec.append(data)
+        # print(data)
         print("Finished recording")
-        #self.write(b''.join(rec))
+        # self.write(b''.join(rec))
 
         stream_context = self.ds.createStream()
         for frame in rec:
             if frame is not None:
-                self.ds.feedAudioContent(stream_context, np.frombuffer(frame, np.int16))
+                self.ds.feedAudioContent(
+                    stream_context, np.frombuffer(frame, np.int16))
         self.recognizedText = self.ds.finishStream(stream_context)
         print("Recognized: %s" % self.recognizedText)
 
@@ -96,7 +101,9 @@ class Recorder:
             if self.stopVariable is True:
                 break
             input = self.stream.read(chunk)
+            # print(input)
             rms_val = self.rms(input)
+            # print(rms_val)
             if rms_val > Threshold:
                 self.record()
                 return self.recognizedText

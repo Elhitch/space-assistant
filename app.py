@@ -11,6 +11,7 @@ import wx
 import numpy as np
 from modListener import Recorder
 from modCore import Core
+import modSpeech
 
 # Global path variables
 PATH_TO_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -23,14 +24,15 @@ DS_LM_WEIGHT = 1.75
 DS_WORD_COUNT_WEIGHT = 1.00
 DS_VALID_WORD_COUNT_WEIGHT = 1.00
 
+
 class ModGUI(wx.Frame):
     listenerThreadList = {
-        "main" : {
+        "main": {
             "thread": None,
             "listener": None,
             "isRunning": False
         },
-        "secondary" : {
+        "secondary": {
             "thread": None,
             "listener": None,
             "isRunning": False
@@ -39,17 +41,18 @@ class ModGUI(wx.Frame):
     messagesList = []
 
     """ Functions to handle back-end operations """
+
     def pushMessage(self, createdBy, msgText):
         msgToAdd = createdBy + ": " + msgText
         if self.msgsCount < 10:
-            #self.messagesList.append(msgToAdd)
+            # self.messagesList.append(msgToAdd)
             for StaticTextObject in self.messagesList:
                 if StaticTextObject.Label == "":
                     StaticTextObject.SetLabel(msgToAdd)
                     break
         else:
             for i in range(9):
-                self.messagesList[i].SetLabel(self.messagesList[i+1].Label) 
+                self.messagesList[i].SetLabel(self.messagesList[i+1].Label)
             self.messagesList[9].SetLabel(msgToAdd)
 
         self.msgsCount += 1
@@ -80,30 +83,32 @@ class ModGUI(wx.Frame):
         """
         #tagged_sentence = None
         module_name = self.core.find_module(nouns[::-1])
+        print(module_name)
         """
             If the command is recognised, perform further analysis to execute the specific action.
             Else, notify the user.
         """
-        if module_name != None:
+        if module_name:
             module = importlib.import_module(f'commands.{module_name}')
             # !!! Passes the tokenized sentence as well
             modInitResult = module.initialize(sentenceComposition)
-            self.pushMessage("SA", modInitResult)
-            speechFeedbackEngine = modSpeech.initSpeechFeedback()
-            modSpeech.say(speechFeedbackEngine, modInitResult)
+            print(f'modInitResult - {modInitResult}')
+            modSpeech.say(modInitResult)
         else:
-            print ("Sorry, I can't understand you.")
-            self.pushMessage("SA", "Sorry, I can't understand you.")
+            modSpeech.say("Sorry, I can't understand you.")
+            # self.pushMessage("SA", "Sorry, I can't understand you.")
+            # modSpeech.say(speechFeedbackEngine, modInitResult)
 
     """ Following: Event handlers """
+
     def btnRecordPress(self, e):
         if self.btnRecord.Label == "Record":
             print(self.btnRecord.Label)
             #self.runSecondaryThread = False
-            #self.stopListeningThread("secondary")
+            # self.stopListeningThread("secondary")
             self.createNewListeningThread("main")
             self.btnRecord.SetLabel("Stop")
-            #self.GetSTT()
+            # self.GetSTT()
         else:
             print(self.btnRecord.Label)
             self.stopListeningThread("main")
@@ -111,9 +116,9 @@ class ModGUI(wx.Frame):
             self.btnRecord.SetLabel("Record")
 
     def OnClose(self, event):
-        dlg = wx.MessageDialog(self, 
-            "Do you really want to close Space Assistant?",
-            "Confirm Exit", wx.OK|wx.CANCEL|wx.ICON_QUESTION)
+        dlg = wx.MessageDialog(self,
+                               "Do you really want to close Space Assistant?",
+                               "Confirm Exit", wx.OK | wx.CANCEL | wx.ICON_QUESTION)
         result = dlg.ShowModal()
         dlg.Destroy()
         if result == wx.ID_OK:
@@ -123,8 +128,10 @@ class ModGUI(wx.Frame):
             sys.exit()
 
     """ A function to create UI elements """
+
     def initUI(self, title):
-        wx.Frame.__init__(self, None, title=title, pos=(150,150), size=(400,550), style=wx.DEFAULT_FRAME_STYLE ^ wx.RESIZE_BORDER)
+        wx.Frame.__init__(self, None, title=title, pos=(150, 150), size=(
+            400, 550), style=wx.DEFAULT_FRAME_STYLE ^ wx.RESIZE_BORDER)
         self.Bind(wx.EVT_CLOSE, self.OnClose)
 
         panel = wx.Panel(self)
@@ -144,17 +151,18 @@ class ModGUI(wx.Frame):
         verticalPanelSizer.Add(horizontalMessagesSizer, 0, wx.ALL, 10)
 
         verticalPanelSizer.AddSpacer(20)
-        
-        self.msgInput = wx.TextCtrl(panel, style=wx.TE_PROCESS_ENTER, size=(500,40))
+
+        self.msgInput = wx.TextCtrl(
+            panel, style=wx.TE_PROCESS_ENTER, size=(500, 40))
         self.msgInput.Bind(wx.EVT_TEXT_ENTER, self.AddUIMessage)
         verticalPanelSizer.Add(self.msgInput, 0, wx.ALL, 10)
 
-        self.btnRecord = wx.Button(panel, size=(90,40), label="Record")
+        self.btnRecord = wx.Button(panel, size=(90, 40), label="Record")
         self.btnRecord.Bind(wx.EVT_BUTTON, self.btnRecordPress)
 
         horizontalButtonSizer = wx.BoxSizer(wx.HORIZONTAL)
         horizontalButtonSizer.Add(self.btnRecord, wx.ALL, 0)
-        verticalPanelSizer.Add(horizontalButtonSizer, 0, wx.ALL|wx.CENTER, 0)
+        verticalPanelSizer.Add(horizontalButtonSizer, 0, wx.ALL | wx.CENTER, 0)
 
         panel.SetSizer(verticalPanelSizer)
         panel.Layout()
@@ -162,8 +170,9 @@ class ModGUI(wx.Frame):
     def listenForAudioInput(self, whichThread):
         self.listenerThreadList[whichThread]["listener"] = Recorder(self.ds)
         if whichThread == "main":
+            print("HELLO")
             recognizedText = self.listenerThreadList[whichThread]["listener"].listen()
-            self.btnRecord.SetLabel("Record")
+            # self.btnRecord.SetLabel("Record")
             if recognizedText is not None:
                 self.ProcessCommand(recognizedText)
         elif whichThread == "secondary":
@@ -172,7 +181,7 @@ class ModGUI(wx.Frame):
                 if recognizedText is not None:
                     if recognizedText == "space":
                         print("Start recording real command")
-                        #self.stopListeningThread("secondary")
+                        # self.stopListeningThread("secondary")
                         self.listenerThreadList["secondary"]["listener"].stop()
                         self.createNewListeningThread("main")
                     # More code should come here
@@ -185,27 +194,30 @@ class ModGUI(wx.Frame):
         if whichThread == "main":
             if self.listenerThreadList["secondary"]["isRunning"]:
                 self.stopListeningThread("secondary")
-                
+
         self.listenerThreadList[whichThread]["isRunning"] = True
-        self.listenerThreadList[whichThread]["thread"] = threading.Thread(target=self.listenForAudioInput, args=(whichThread,))
+        self.listenerThreadList[whichThread]["thread"] = threading.Thread(
+            target=self.listenForAudioInput, args=(whichThread,))
         self.listenerThreadList[whichThread]["thread"].start()
 
     def stopListeningThread(self, whichThread):
         if self.listenerThreadList[whichThread]["isRunning"]:
             self.listenerThreadList[whichThread]["isRunning"] = False
             self.listenerThreadList[whichThread]["listener"].stop()
-            self.listenerThreadList[whichThread]["thread"].join()
+            # self.listenerThreadList[whichThread]["thread"].join()
 
     def __init__(self, title):
         self.core = Core()
         # Create a DeepSpeech object
-        dsModelPath = os.path.abspath(os.path.join(PATH_TO_MODEL, "output_graph.pbmm"))
+        dsModelPath = os.path.abspath(
+            os.path.join(PATH_TO_MODEL, "output_graph.pbmm"))
         dsLMPath = os.path.abspath(os.path.join(PATH_TO_MODEL, "lm.binary"))
         dsTriePath = os.path.abspath(os.path.join(PATH_TO_MODEL, "trie"))
         self.ds = Model(dsModelPath, DS_BEAM_WIDTH)
         self.ds.enableDecoderWithLM(dsLMPath, dsTriePath, 0.75, 1.75)
         self.initUI(title)
         self.createNewListeningThread("secondary")
+
 
 if __name__ == "__main__":
     GUIApp = wx.App()
