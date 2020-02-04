@@ -1,15 +1,10 @@
 #!/usr/bin/python
 import sys
-# import nltk
-# import json
 import importlib
 import os
-import subprocess
 from deepspeech import Model
 import threading
 import wx
-from pubsub import pub
-import numpy as np
 from modListener import Recorder
 from modCore import Core
 import modSpeech
@@ -43,9 +38,12 @@ class ModGUI(wx.Frame):
     """ Functions to handle back-end operations """
 
     def SayAndLog(self, msg):
-        modSpeech.say(msg)
-        print("Message is: " + msg)
-        self.pushMessage("SA", str(msg))
+        if type(msg) is list:
+            modSpeech.say(msg[0])
+            self.pushMessage("SA", msg[1])
+        else:
+            modSpeech.say(msg)
+            self.pushMessage("SA", msg)
 
     def pushMessage(self, createdBy, msgText):
         msgToAdd = createdBy + ": " + msgText
@@ -174,13 +172,6 @@ class ModGUI(wx.Frame):
         if whichThread == "main":
             recognizedText = self.listenerThreadList[whichThread]["listener"].listen()
             wx.CallAfter(self.AddUIMessage, None, recognizedText)
-            print("Should write this to UI: " + recognizedText)
-            # self.btnRecord.SetLabel("Record")
-            # if "by" in recognizedText.split():
-            #     modSpeech.say("Bye bye!")
-            #     self.stopListeningThread("main")
-            #     self.createNewListeningThread("secondary")
-            # elif recognizedText is not None:
             if recognizedText is not None:
                 self.ProcessCommand(recognizedText)
         elif whichThread == "secondary":
@@ -229,7 +220,6 @@ class ModGUI(wx.Frame):
         self.ds = Model(dsModelPath, DS_BEAM_WIDTH)
         self.ds.enableDecoderWithLM(dsLMPath, dsTriePath, 0.75, 1.75)
         self.initUI(title)
-        pub.subscribe(self.SayAndLog, "addMsg")
         self.createNewListeningThread("secondary")
 
 

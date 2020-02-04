@@ -1,17 +1,10 @@
 import pyaudio
 import math
 import struct
-import wave
 import time
 import sys
-import os
 from deepspeech import Model
 import numpy as np
-#import scipy.io.wavfile as wav
-
-# Global path variables
-PATH_TO_DIR = os.path.dirname(os.path.realpath(__file__))
-PATH_TO_MODEL = os.path.abspath(os.path.join(PATH_TO_DIR, '../ds-model/'))
 
 # PyAudio variables
 # Threshold = 150
@@ -79,9 +72,7 @@ class Recorder:
         keepLooping = True
         while self.stopVariable is not True:
             input = self.stream.read(chunk)
-            # print(input)
             rms_val = self.rms(input)
-            # print(rms_val)
             if rms_val > Threshold:
                 self.record()
                 return self.recognizedText
