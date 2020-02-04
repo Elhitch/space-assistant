@@ -6,7 +6,8 @@ def initialize(sentence):
     h, m = now.split(':')
     time = ''
     if int(m) >= 40:
-        time = f'It\'s {m} to {int(h)}.'
+        time = f'It\'s {60 - int(m)} to {int(h)}.'
     else:
-        time = f'It\'s {m} past {int(h)}.'
-    return time
+        time = f'It\'s {int(m)} past {int(h)}.'
+
+    return [time, f'It\'s {now}']
