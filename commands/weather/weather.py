@@ -25,7 +25,7 @@ def initialize(sentence):
         else:
             temp = round(response['main']['temp'], 2)
             return_value += f'It\'s {temp} degrees Celsius.'
-    else :
+    else:
         return_value = "Sorry. Could not get weather information."
 
     return return_value
