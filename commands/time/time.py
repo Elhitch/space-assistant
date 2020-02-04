@@ -10,4 +10,4 @@ def initialize(sentence):
     else:
         time = f'It\'s {int(m)} past {int(h)}.'
 
-    return [time, f'It\'s {now}']
+    return [time, f'It\'s {now}.']

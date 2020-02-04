@@ -2,6 +2,7 @@
 import sys
 import importlib
 import os
+import signal
 from deepspeech import Model
 import threading
 import wx
@@ -39,10 +40,10 @@ class ModGUI(wx.Frame):
 
     def SayAndLog(self, msg):
         if type(msg) is list:
-            modSpeech.say(msg[0])
+            self.lastPID = modSpeech.say(msg[0])
             self.pushMessage("SA", msg[1])
         else:
-            modSpeech.say(msg)
+            self.lastPID = modSpeech.say(msg)
             self.pushMessage("SA", msg)
 
     def pushMessage(self, createdBy, msgText):
@@ -78,6 +79,11 @@ class ModGUI(wx.Frame):
             self.pushMessage("You", text)
 
     def ProcessCommand(self, command):
+        command = command.lower()
+        if (command.lower() == "stop"):
+            os.kill(self.lastPID, signal.SIGTERM)
+            self.stopListeningThread("main", False)
+            return
         sentenceComposition = self.core.tagAndTokenize(command)
         nouns = self.core.find_nouns(sentenceComposition)
         """
@@ -171,8 +177,8 @@ class ModGUI(wx.Frame):
         self.listenerThreadList[whichThread]["listener"] = Recorder(self.ds)
         if whichThread == "main":
             recognizedText = self.listenerThreadList[whichThread]["listener"].listen()
-            wx.CallAfter(self.AddUIMessage, None, recognizedText)
             if recognizedText is not None:
+                wx.CallAfter(self.AddUIMessage, None, recognizedText)
                 self.ProcessCommand(recognizedText)
         elif whichThread == "secondary":
             while self.listenerThreadList[whichThread]["isRunning"]:
@@ -184,10 +190,6 @@ class ModGUI(wx.Frame):
                         self.stopListeningThread("secondary", False)
                         self.createNewListeningThread("main")
                     # More code should come here
-                # The call below doesn't work but must be programmed by other means
-                # self.AddUserMessage(None, recognizedText.strip())
-
-        # print(whichThread + " thread listener stopped")
 
     def createNewListeningThread(self, whichThread):
         if whichThread == "main":
@@ -221,6 +223,7 @@ class ModGUI(wx.Frame):
         self.ds.enableDecoderWithLM(dsLMPath, dsTriePath, 0.75, 1.75)
         self.initUI(title)
         self.createNewListeningThread("secondary")
+        self.lastPID = None
 
 
 if __name__ == "__main__":

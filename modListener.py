@@ -2,7 +2,6 @@ import pyaudio
 import math
 import struct
 import time
-import sys
 from deepspeech import Model
 import numpy as np
 
