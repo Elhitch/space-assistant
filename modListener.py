@@ -12,7 +12,6 @@ import numpy as np
 # Global path variables
 PATH_TO_DIR = os.path.dirname(os.path.realpath(__file__))
 PATH_TO_MODEL = os.path.abspath(os.path.join(PATH_TO_DIR, '../ds-model/'))
-#PATH_TO_AUDIO = os.path.abspath(os.path.join(PATH_TO_DIR, 'temp/lastCmd.wav'))
 
 # PyAudio variables
 # Threshold = 150
@@ -24,9 +23,6 @@ CHANNELS = 1
 RATE = 16000
 swidth = 2
 TIMEOUT_LENGTH = 2
-
-# Name of the channel to emit messages to
-MSG_BUS_CHANNEL = "mainComm"
 
 class Recorder:
     @staticmethod
@@ -73,29 +69,15 @@ class Recorder:
 
         stream_context = self.ds.createStream()
         for frame in rec:
-            if frame is not None:
                 self.ds.feedAudioContent(
                     stream_context, np.frombuffer(frame, np.int16))
         self.recognizedText = self.ds.finishStream(stream_context)
         print("Recognized: %s" % self.recognizedText)
 
-    # The following function is not used in the latest versions of the program:
-    def write(self, recording):
-        filename = os.path.join(PATH_TO_TEMP, 'lastCmd.wav')
-
-        wf = wave.open(filename, 'wb')
-        wf.setnchannels(CHANNELS)
-        wf.setsampwidth(self.p.get_sample_size(FORMAT))
-        wf.setframerate(RATE)
-        wf.writeframes(recording)
-        wf.close()
-
     def listen(self):
         print('Listening beginning')
         keepLooping = True
-        while True:
-            if self.stopVariable is True:
-                break
+        while self.stopVariable is not True:
             input = self.stream.read(chunk)
             # print(input)
             rms_val = self.rms(input)
