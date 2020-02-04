@@ -26,7 +26,7 @@ def initialize(sentence):
         is to open the calendar.
     """
     openCalendar(calendarProgram)
-    return "Alright, opening your calendar"
+    return "Alright, opening your calendar."
     """ Determine the function that needs to be executed: """
     # print(verb)
     # # return openCalendar(calendarProgram)

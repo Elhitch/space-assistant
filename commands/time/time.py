@@ -3,4 +3,5 @@ from datetime import datetime
 
 def initialize(sentence):
     now = datetime.now()
-    return now.strftime("%H:%M")
+    now_feedback = "It is " + now.strftime("%H:%M") + "."
+    return now_feedback

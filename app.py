@@ -106,7 +106,6 @@ class ModGUI(wx.Frame):
     def btnRecordPress(self, e):
         if self.btnRecord.Label == "Record":
             print(self.btnRecord.Label)
-            # self.runSecondaryThread = False
             self.stopListeningThread("secondary")
             self.createNewListeningThread("main")
             self.btnRecord.SetLabel("Stop")

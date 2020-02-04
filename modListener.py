@@ -28,9 +28,6 @@ TIMEOUT_LENGTH = 2
 # Name of the channel to emit messages to
 MSG_BUS_CHANNEL = "mainComm"
 
-f_name_directory = os.getcwd() + '/temp'
-
-
 class Recorder:
     @staticmethod
     def rms(frame):
