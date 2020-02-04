@@ -2,6 +2,11 @@ from datetime import datetime
 
 
 def initialize(sentence):
-    now = datetime.now()
-    now_feedback = "It is " + now.strftime("%H:%M") + "."
-    return now_feedback
+    now = datetime.now().strftime("%I:%M")
+    h, m = now.split(':')
+    time = ''
+    if int(m) >= 40:
+        time = f'It\'s {m} to {int(h)}.'
+    else:
+        time = f'It\'s {m} past {int(h)}.'
+    return time
