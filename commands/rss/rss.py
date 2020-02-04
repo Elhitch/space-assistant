@@ -1,5 +1,4 @@
 import feedparser
-import urlopen
 
 
 def initialize(sentence):

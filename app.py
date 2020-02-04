@@ -13,7 +13,6 @@ import modSpeech
 # Global path variables
 PATH_TO_DIR = os.path.dirname(os.path.realpath(__file__))
 PATH_TO_MODEL = os.path.abspath(os.path.join(PATH_TO_DIR, '../ds-model/'))
-# PATH_TO_AUDIO = os.path.abspath(os.path.join(PATH_TO_DIR, 'temp/lastCmd.wav'))
 
 # DeepSpeech constants
 DS_BEAM_WIDTH = 500
