@@ -8,6 +8,7 @@ import subprocess
 from deepspeech import Model
 import threading
 import wx
+from pubsub import pub
 import numpy as np
 from modListener import Recorder
 from modCore import Core
@@ -43,7 +44,8 @@ class ModGUI(wx.Frame):
 
     def SayAndLog(self, msg):
         modSpeech.say(msg)
-        self.pushMessage("SA", msg)
+        print("Message is: " + msg)
+        self.pushMessage("SA", str(msg))
 
     def pushMessage(self, createdBy, msgText):
         msgToAdd = createdBy + ": " + msgText
@@ -96,10 +98,10 @@ class ModGUI(wx.Frame):
             # !!! Passes the tokenized sentence as well
             modInitResult = module.initialize(sentenceComposition)
             print(f'modInitResult - {modInitResult}')
-            # modSpeech.say(modInitResult)
-            self.SayAndLog(modInitResult)
+            wx.CallAfter(self.SayAndLog, modInitResult)
         else:
-            self.SayAndLog("Sorry, I can't understand you.")
+            wx.CallAfter(self.SayAndLog, "Sorry, I can't understand you")
+        self.stopListeningThread("main", False)
 
     """ Following: Event handlers """
 
@@ -109,11 +111,10 @@ class ModGUI(wx.Frame):
             self.stopListeningThread("secondary")
             self.createNewListeningThread("main")
             self.btnRecord.SetLabel("Stop")
-            # self.GetSTT()
         else:
             print(self.btnRecord.Label)
             self.stopListeningThread("main")
-            self.createNewListeningThread("secondary")
+            #self.createNewListeningThread("secondary")
             self.btnRecord.SetLabel("Record")
 
     def OnClose(self, event):
@@ -171,8 +172,9 @@ class ModGUI(wx.Frame):
     def listenForAudioInput(self, whichThread):
         self.listenerThreadList[whichThread]["listener"] = Recorder(self.ds)
         if whichThread == "main":
-            print("Starting main thread")
             recognizedText = self.listenerThreadList[whichThread]["listener"].listen()
+            wx.CallAfter(self.AddUIMessage, None, recognizedText)
+            print("Should write this to UI: " + recognizedText)
             # self.btnRecord.SetLabel("Record")
             # if "by" in recognizedText.split():
             #     modSpeech.say("Bye bye!")
@@ -186,10 +188,9 @@ class ModGUI(wx.Frame):
                 recognizedText = self.listenerThreadList[whichThread]["listener"].listen()
                 if recognizedText is not None:
                     if recognizedText == "space":
-                        modSpeech.say('Hello! How can I help you?')
-                        # print("Start recording real command")
-                        # self.stopListeningThread("secondary")
-                        self.listenerThreadList["secondary"]["listener"].stop()
+                        wx.CallAfter(self.AddUIMessage, None, recognizedText)
+                        wx.CallAfter(self.SayAndLog, "Hello! How can I help you?")
+                        self.stopListeningThread("secondary", False)
                         self.createNewListeningThread("main")
                     # More code should come here
                 # The call below doesn't work but must be programmed by other means
@@ -208,12 +209,15 @@ class ModGUI(wx.Frame):
         self.listenerThreadList[whichThread]["thread"].start()
         print("Started thread " + whichThread)
 
-    def stopListeningThread(self, whichThread):
+    def stopListeningThread(self, whichThread, join=True):
         if self.listenerThreadList[whichThread]["isRunning"]:
             self.listenerThreadList[whichThread]["isRunning"] = False
             self.listenerThreadList[whichThread]["listener"].stop()
-            self.listenerThreadList[whichThread]["thread"].join()
+            if join == True: self.listenerThreadList[whichThread]["thread"].join()
             print("Stopped thread " + whichThread)
+            if whichThread == "main":
+                self.createNewListeningThread("secondary")
+                self.btnRecord.SetLabel("Record")
 
     def __init__(self, title):
         self.core = Core()
@@ -225,6 +229,7 @@ class ModGUI(wx.Frame):
         self.ds = Model(dsModelPath, DS_BEAM_WIDTH)
         self.ds.enableDecoderWithLM(dsLMPath, dsTriePath, 0.75, 1.75)
         self.initUI(title)
+        pub.subscribe(self.SayAndLog, "addMsg")
         self.createNewListeningThread("secondary")
 
 
