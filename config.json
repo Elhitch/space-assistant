@@ -1,9 +1,10 @@
 {
-    "commands": {
-        "browser": ["youtube","google","wikipedia"],
-
-        "calendar": ["appointment", "calendar"],
-        "alarm": ["alarm", "clock"],
-        "wikipedia": ["wikipedia"]
-    }
+	"commands": {
+		"time": ["time", "clock"],
+		"date": ["date", "today"],
+		"calendar": ["calendar"],
+		"wikipedia": ["wikipedia"],
+		"rss": ["feed", "news"],
+		"weather": ["weather", "humidity", "pressure"]
+	}
 }
