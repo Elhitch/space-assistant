@@ -50,7 +50,7 @@ class Recorder:
         current = time.time()
         end = time.time() + TIMEOUT_LENGTH
 
-        while current <= end:
+        while current <= end and self.stopVariable is not True:
             data = self.stream.read(chunk)
             if self.rms(data) >= Threshold:
                 end = time.time() + TIMEOUT_LENGTH
@@ -58,6 +58,9 @@ class Recorder:
             current = time.time()
             rec.append(data)
         print("Finished recording")
+        if self.stopVariable is True:
+            self.recognizedText = None
+            return
 
         stream_context = self.ds.createStream()
         for frame in rec:
