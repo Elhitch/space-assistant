@@ -7,7 +7,7 @@ numpy==1.17.3
 pika==1.1.0
 Cython==0.29.14
 ipaddr==2.2.0
-lxml==4.4.2
+lxml==4.6.5
 ordereddict==1.1
 protobuf==3.11.2
 pyOpenSSL==19.1.0
